@@ -1,0 +1,12 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# IDE
+.vs/
+.vscode/
+
+# DB (optional)
+*.db
+*.db-shm
+*.db-wal
