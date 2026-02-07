@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -44,14 +45,11 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
+            new OpenApiReference
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }.AsSecurityScheme(),
             Array.Empty<string>()
         }
     });
@@ -112,9 +110,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-/* ---------------- CORS (FIXED FOR NETLIFY) ----------------
-   ✅ No AllowCredentials() needed (you use Bearer tokens, not cookies)
-   ✅ This must match your Netlify domains exactly
+/* ---------------- CORS (NETLIFY) ----------------
+   ✅ Bearer token auth (no cookies) => NO AllowCredentials needed
 */
 builder.Services.AddCors(options =>
 {
@@ -130,9 +127,25 @@ builder.Services.AddCors(options =>
     );
 });
 
+/* ---------------- RENDER PROXY FIX ----------------
+   ✅ This prevents HTTPS redirect / scheme confusion behind Render
+*/
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // Render proxies are not in KnownNetworks by default
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
 /* ---------------- PIPELINE ---------------- */
+
+// ✅ MUST be BEFORE UseHttpsRedirection()
+app.UseForwardedHeaders();
+
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -155,7 +168,7 @@ app.MapControllers();
 // ✅ SignalR endpoint
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-// ✅ Serve index.html for root/unknown routes (keep only if you host UI inside API)
+// ✅ Serve index.html for root/unknown routes (keep only if hosting UI inside API)
 app.MapFallbackToFile("index.html");
 
 /* ---------------- SEED + CLEANUP ---------------- */
@@ -166,7 +179,7 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
 
-    // ✅ CLEANUP: remove bad DailyWinLoss records (e.g., year 0001)
+    // ✅ Cleanup bad DailyWinLoss records
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     var badDaily = await db.DailyWinLosses
@@ -209,7 +222,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-/* ---------------- Render PORT binding ---------------- */
+/* ---------------- RENDER PORT BINDING ---------------- */
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
@@ -217,3 +230,10 @@ if (!string.IsNullOrWhiteSpace(port))
 }
 
 app.Run();
+
+/* ---------------- HELPER EXTENSION FOR SWAGGER SECURITY REQUIREMENT ---------------- */
+static class OpenApiRefExt
+{
+    public static OpenApiSecurityScheme AsSecurityScheme(this OpenApiReference reference)
+        => new OpenApiSecurityScheme { Reference = reference };
+}
