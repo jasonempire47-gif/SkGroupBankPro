@@ -135,3 +135,4 @@ C:\Users\jayda\OneDrive\Desktop\MY PROJECT\Sk Group BankPro\SkGroupBankPro.Api\o
 C:\Users\jayda\OneDrive\Desktop\MY PROJECT\Sk Group BankPro\SkGroupBankPro.Api\obj\Debug\net8.0\SkGroupBankpro.Api.genruntimeconfig.cache
 C:\Users\jayda\OneDrive\Desktop\MY PROJECT\Sk Group BankPro\SkGroupBankPro.Api\obj\Debug\net8.0\ref\SkGroupBankpro.Api.dll
 C:\Users\jayda\OneDrive\Desktop\MY PROJECT\Sk Group BankPro\SkGroupBankPro.Api\bin\Debug\net8.0\SkGroupBankpro.Api.staticwebassets.runtime.json
+C:\Users\jayda\OneDrive\Desktop\MY PROJECT\Sk Group BankPro\SkGroupBankPro.Api\obj\Debug\net8.0\SkGroupBankpro.Api.sourcelink.json

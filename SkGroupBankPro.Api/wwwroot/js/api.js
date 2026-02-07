@@ -1,7 +1,8 @@
 // wwwroot/js/api.js
 (function () {
-  // ✅ Option 1: same origin (UI + API both on http://localhost:5000)
-  window.API_BASE = "";
+  // ✅ Netlify UI calls Render API (cross-origin)
+  // Keep NO trailing slash
+  window.API_BASE = "https://skgroupbankpro-4.onrender.com".replace(/\/+$/, "");
 
   window.escapeHtml = function escapeHtml(str) {
     if (str == null) return "";
@@ -27,15 +28,43 @@
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${window.API_BASE}${path}`, { ...options, headers });
+    // ✅ Ensure path starts with /
+    const p = String(path || "");
+    const safePath = p.startsWith("/") ? p : `/${p}`;
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(text || `HTTP ${res.status}`);
-    }
+    const res = await fetch(`${window.API_BASE}${safePath}`, {
+      ...options,
+      headers,
+    });
 
     const ct = (res.headers.get("content-type") || "").toLowerCase();
-    if (!ct.includes("application/json")) return null;
-    return await res.json();
+    const isJson = ct.includes("application/json");
+
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+
+      try {
+        if (isJson) {
+          const err = await res.json();
+          msg =
+            err?.message ||
+            err?.error ||
+            (typeof err === "string" ? err : JSON.stringify(err));
+        } else {
+          const text = await res.text();
+          if (text && text.trim()) msg = text;
+        }
+      } catch {
+        // ignore parse errors
+      }
+
+      throw new Error(msg);
+    }
+
+    // 204 No Content
+    if (res.status === 204) return null;
+
+    // Return JSON if JSON, else text
+    return isJson ? await res.json() : await res.text();
   };
 })();

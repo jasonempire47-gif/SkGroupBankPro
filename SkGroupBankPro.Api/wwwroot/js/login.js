@@ -1,52 +1,50 @@
-// frontend/js/login.js
-(function () {
-  function $(id) { return document.getElementById(id); }
+// wwwroot/js/login.js
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnLogin");
+  const errorEl = document.getElementById("loginError");
 
-  function setError(msg) {
-    const el = $("error") || $("loginError");
-    if (el) el.textContent = msg || "";
-  }
+  if (!btn) return;
 
-  async function doLogin() {
-    const username = ($("username")?.value || "").trim();
-    const password = ($("password")?.value || "").trim();
+  btn.addEventListener("click", login);
 
-    setError("");
+  async function login() {
+    const username = document.getElementById("username")?.value?.trim();
+    const password = document.getElementById("password")?.value?.trim();
+
+    errorEl.textContent = "";
 
     if (!username || !password) {
-      setError("Please enter username and password.");
+      errorEl.textContent = "Please enter username and password.";
       return;
     }
 
+    btn.disabled = true;
+
     try {
-      // Swagger path: POST /api/auth/login
-      const res = await window.api.post("/api/auth/login", { username, password });
+      // ✅ ALWAYS use API_BASE from api.js
+      const res = await fetch(`${window.API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
 
-      // Your API returns: { token, username, role }
-      const token = res?.token;
-      if (!token) throw new Error("Login succeeded but token not returned.");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Login failed");
+      }
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("username", res?.username || username);
-      localStorage.setItem("role", res?.role || "");
+      const data = await res.json();
 
-      // go dashboard
-      window.location.href = "dashboard.html";
-    } catch (e) {
-      setError(e?.message || "Login failed.");
+      // Save JWT
+      localStorage.setItem("token", data.token);
+
+      // Redirect after login
+      window.location.href = "/dashboard.html";
+    } catch (err) {
+      console.error(err);
+      errorEl.textContent = "Cannot reach API. Backend is not responding.";
+    } finally {
+      btn.disabled = false;
     }
   }
-
-  // expose for inline onclick OR bind button
-  window.login = doLogin;
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const btn = $("btnLogin");
-    if (btn) btn.addEventListener("click", doLogin);
-
-    // Enter key support
-    $("password")?.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") doLogin();
-    });
-  });
-})();
+});
