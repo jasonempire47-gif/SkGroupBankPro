@@ -10,7 +10,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Controllers + DateOnly/TimeOnly JSON support (harmless even if you stop using /api/daily-winloss POST)
+// ✅ Controllers + DateOnly/TimeOnly JSON support
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -69,7 +69,7 @@ builder.Services.AddScoped<PasswordHasher>();
 // ✅ SignalR realtime
 builder.Services.AddSignalR();
 
-// ✅ Option B: FULL AUTO rebates (auto-create + auto-approve)
+// ✅ Auto rebates background service
 builder.Services.AddHostedService<AutoRebateService>();
 
 /* ---------------- JWT ---------------- */
@@ -112,14 +112,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-/* ---------------- CORS ---------------- */
-builder.Services.AddCors(o =>
+/* ---------------- CORS (FIXED FOR NETLIFY) ----------------
+   ✅ No AllowCredentials() needed (you use Bearer tokens, not cookies)
+   ✅ This must match your Netlify domains exactly
+*/
+builder.Services.AddCors(options =>
 {
-    o.AddPolicy("AllowLocal", p =>
-        p.WithOrigins("http://localhost:5000", "http://127.0.0.1:5000", "http://127.0.0.1:5500", "http://localhost:5500")
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowCredentials()
+    options.AddPolicy("AllowFrontend", policy =>
+        policy
+            .WithOrigins(
+                "https://skgroup.xyz",
+                "https://www.skgroup.xyz",
+                "https://skgroup-bankpro.netlify.app"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
     );
 });
 
@@ -136,7 +143,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-app.UseCors("AllowLocal");
+
+// ✅ CRITICAL: CORS must be between Routing and Auth
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -146,7 +155,7 @@ app.MapControllers();
 // ✅ SignalR endpoint
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-// ✅ Serve index.html for root/unknown routes
+// ✅ Serve index.html for root/unknown routes (keep only if you host UI inside API)
 app.MapFallbackToFile("index.html");
 
 /* ---------------- SEED + CLEANUP ---------------- */
@@ -199,6 +208,8 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 }
+
+/* ---------------- Render PORT binding ---------------- */
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
