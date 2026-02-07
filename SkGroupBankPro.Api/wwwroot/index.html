@@ -20,7 +20,7 @@
     .bg {
       position: fixed;
       inset: 0;
-      background-image: url("./assets/bg.png");
+      background-image: url("./assets/bg.png"); /* ✅ make sure this file exists */
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -126,29 +126,30 @@
       <img src="./assets/logo.png" class="brand-logo" alt="SK Group Logo" />
 
       <div class="brand-title">
-        SK GROUP<br />BANKPRO
+        SK GROUP<br> BANKPRO
       </div>
 
-      <input id="username" type="text" placeholder="Username" autocomplete="username" />
-      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <input type="text" id="username" placeholder="Username" autocomplete="username" />
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
 
       <button id="btnLogin" type="button">Login</button>
 
-      <div id="loginError" class="login-error"></div>
+      <div id="error" class="login-error"></div>
     </div>
   </div>
 
-  <!-- ✅ API helper (must load first) -->
-  <script src="./js/api.js"></script>
-
-  <!-- ✅ Login logic -->
   <script>
+    // ✅ API base (you are running on 5000)
+    const API_BASE = "http://localhost:5000";
+
     const el = (id) => document.getElementById(id);
 
-    // Redirect if already logged in
-    (function () {
+    // If already logged in, go dashboard
+    (function init() {
       const token = localStorage.getItem("token");
       if (token) {
+        // optional: you can validate token by calling /api/dashboard/summary
+        // but for now, just redirect
         window.location.href = "./dashboard.html";
       }
     })();
@@ -159,15 +160,15 @@
     });
 
     async function login() {
-      const username = el("username").value.trim();
-      const password = el("password").value.trim();
-      const errorEl = el("loginError");
+      const user = el("username").value.trim();
+      const pass = el("password").value.trim();
+      const error = el("error");
       const btn = el("btnLogin");
 
-      errorEl.textContent = "";
+      error.textContent = "";
 
-      if (!username || !password) {
-        errorEl.textContent = "Please enter username and password.";
+      if (!user || !pass) {
+        error.textContent = "Please enter username and password.";
         return;
       }
 
@@ -175,28 +176,35 @@
       btn.textContent = "Logging in...";
 
       try {
-        const data = await apiFetch("/api/auth/login", {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
           method: "POST",
-          body: JSON.stringify({ username, password })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: user, password: pass })
         });
 
-        if (!data?.token) {
-          errorEl.textContent = "Login failed: no token returned.";
+        if (!res.ok) {
+          // 401 will land here
+          error.textContent = res.status === 401
+            ? "Invalid username or password."
+            : `Login failed (HTTP ${res.status}).`;
           return;
         }
 
+        const data = await res.json();
+        if (!data?.token) {
+          error.textContent = "Login failed: no token returned.";
+          return;
+        }
+
+        // Save token + user info
         localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.username || username);
+        localStorage.setItem("username", data.username || user);
         localStorage.setItem("role", data.role || "");
 
+        // Redirect
         window.location.href = "./dashboard.html";
       } catch (err) {
-        const msg = String(err?.message || err || "");
-        if (msg.includes("401")) {
-          errorEl.textContent = "Invalid username or password.";
-        } else {
-          errorEl.textContent = msg || "Cannot reach API.";
-        }
+        error.textContent = "Cannot reach API. Is backend running on port 5000?";
       } finally {
         btn.disabled = false;
         btn.textContent = "Login";

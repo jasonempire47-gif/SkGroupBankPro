@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -11,7 +10,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-/* ---------------- CONTROLLERS + JSON ---------------- */
+// ✅ Controllers + DateOnly/TimeOnly JSON support (harmless even if you stop using /api/daily-winloss POST)
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -21,7 +20,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
-/* ---------------- SWAGGER ---------------- */
+/* ---------------- SWAGGER + JWT ---------------- */
 builder.Services.AddSwaggerGen(c =>
 {
     c.CustomSchemaIds(t => t.FullName);
@@ -47,7 +46,11 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
             },
             Array.Empty<string>()
         }
@@ -63,10 +66,10 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordHasher>();
 
-// SignalR
+// ✅ SignalR realtime
 builder.Services.AddSignalR();
 
-// Auto rebates service
+// ✅ Option B: FULL AUTO rebates (auto-create + auto-approve)
 builder.Services.AddHostedService<AutoRebateService>();
 
 /* ---------------- JWT ---------------- */
@@ -76,9 +79,6 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
-        opt.RequireHttpsMetadata = true;
-        opt.SaveToken = true;
-
         opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -112,44 +112,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
-
-/* ---------------- CORS (FIXED) ----------------
-   ✅ Include Netlify + local dev.
-   ✅ Explicit origins (required when AllowCredentials is used).
-*/
+/* ---------------- CORS ---------------- */
 builder.Services.AddCors(o =>
 {
-    o.AddPolicy("AllowFrontend", p =>
-        p.WithOrigins(
-            // Netlify custom domains
-            "https://skgroup.xyz",
-            "https://www.skgroup.xyz",
-
-            // Netlify default domain
-            "https://skgroup-bankpro.netlify.app",
-
-            // Local dev
-            "http://localhost:5500",
-            "http://127.0.0.1:5500",
-            "http://localhost:5000",
-            "http://127.0.0.1:5000"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()
+    o.AddPolicy("AllowLocal", p =>
+        p.WithOrigins("http://localhost:5000", "http://127.0.0.1:5000", "http://127.0.0.1:5500", "http://localhost:5500")
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowCredentials()
     );
 });
 
 var app = builder.Build();
-
-/* ---------------- Render/Proxy HTTPS Awareness ----------------
-   Render is behind a proxy. This makes ASP.NET correctly see https scheme.
-*/
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
 
 /* ---------------- PIPELINE ---------------- */
 app.UseSwagger();
@@ -162,9 +136,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
-// ✅ CRITICAL: CORS must be between UseRouting and Authentication
-app.UseCors("AllowFrontend");
+app.UseCors("AllowLocal");
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -174,7 +146,7 @@ app.MapControllers();
 // ✅ SignalR endpoint
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-// ✅ Serve index.html for root/unknown routes (keep only if you host UI from API too)
+// ✅ Serve index.html for root/unknown routes
 app.MapFallbackToFile("index.html");
 
 /* ---------------- SEED + CLEANUP ---------------- */
@@ -185,7 +157,7 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
 
-    // Cleanup bad DailyWinLoss records
+    // ✅ CLEANUP: remove bad DailyWinLoss records (e.g., year 0001)
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     var badDaily = await db.DailyWinLosses
@@ -198,7 +170,7 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 
-    // Seed Admin
+    // ✅ Seed Admin
     if (!await db.Users.AnyAsync(u => u.Username == "admin"))
     {
         db.Users.Add(new SkGroupBankpro.Api.Models.User
@@ -212,7 +184,7 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 
-    // Seed Game Types
+    // ✅ Seed Game Types
     if (!await db.GameTypes.AnyAsync())
     {
         db.GameTypes.AddRange(
@@ -227,8 +199,6 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 }
-
-/* ---------------- Render PORT binding ---------------- */
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {

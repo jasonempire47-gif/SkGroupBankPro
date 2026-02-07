@@ -4,16 +4,13 @@
     return localStorage.getItem("token") || "";
   }
 
-  // ✅ Use the global API_BASE set by api.js
-  function getApiBase() {
-    const base = (window.API_BASE || "").trim();
-    if (base) return base.replace(/\/+$/, "");
-
-    // Optional fallback override (if you ever want to force it)
+  function getApiBaseFromApiFetch() {
+    // We don't have direct access to API_BASE variable from api.js,
+    // so we derive it by requesting a relative URL and reading location.
+    // BUT easiest: allow user to optionally set localStorage API_BASE.
     const ls = (localStorage.getItem("API_BASE") || "").trim();
     if (ls) return ls.replace(/\/+$/, "");
-
-    // Final fallback for local dev only
+    // fallback: assume api.js default (localhost:5000)
     return "http://localhost:5000";
   }
 
@@ -28,16 +25,16 @@
   window.startRealtime = async function startRealtime() {
     if (!window.signalR) {
       console.warn("[realtime] signalR client not loaded.");
-      return null;
+      return;
     }
-    if (connection) return connection;
+    if (connection) return;
 
-    const base = getApiBase();
+    const base = getApiBaseFromApiFetch();
+    const token = getToken();
 
     connection = new signalR.HubConnectionBuilder()
-      // ✅ IMPORTANT: call Render API hub, not Netlify origin
       .withUrl(`${base}/hubs/dashboard`, {
-        accessTokenFactory: () => getToken(),
+        accessTokenFactory: () => getToken()
       })
       .withAutomaticReconnect()
       .build();
@@ -50,20 +47,10 @@
 
     try {
       await connection.start();
-      console.log("[realtime] connected:", `${base}/hubs/dashboard`);
-      return connection;
+      console.log("[realtime] connected");
     } catch (e) {
       console.warn("[realtime] connect failed:", e);
-      connection = null; // allow retry
-      return null;
-    }
-  };
-
-  window.stopRealtime = async function stopRealtime() {
-    if (!connection) return;
-    try {
-      await connection.stop();
-    } finally {
+      // allow retry if needed
       connection = null;
     }
   };
