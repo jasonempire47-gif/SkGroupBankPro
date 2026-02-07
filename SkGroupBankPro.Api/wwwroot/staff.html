@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Staff - Customers & Transactions</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">MAIN</div>
+      <a class="navItem" href="dashboard.html">
+        <span class="navIcon">🏠</span>
+        <span>Dashboard</span>
+      </a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem active" href="staff.html">
+        <span class="navIcon">🧰</span>
+        <span>Staff Tools</span>
+      </a>
+
+      <a class="navItem" href="rebates.html">
+        <span class="navIcon">💸</span>
+        <span>Rebates</span>
+      </a>
+
+      <div class="sidebarBottom">
+        <a class="navItem danger" href="index.html" id="logoutBtn">
+          <span class="navIcon">⏻</span>
+          <span>Logout</span>
+        </a>
+        <div class="sidebarFooter">
+          <div class="mutedSmall">SpinKing Admin</div>
+          <div class="mutedSmall">Preview</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <button class="iconBtn" title="Menu">≡</button>
+          <div class="crumbText">
+            <span class="muted">Staff</span>
+            <span class="sep">/</span>
+            <span class="gold">Tools</span>
+          </div>
+          <h1 style="margin:14px 0 16px;">Staff Tools</h1>
+        </div>
+
+        <div class="topbarRight">
+          <div class="userChip">
+            <div class="avatar" id="userAvatar">A</div>
+            <div class="userMeta">
+              <div class="userName" id="userName">User</div>
+              <div class="userRole" id="userRole">Role</div>
+            </div>
+          </div>
+          <button class="iconBtn" id="btnLogoutTop" title="Logout">⏻</button>
+        </div>
+      </header>
+
+      
+
+      <!-- CREATE CUSTOMER -->
+      <section class="card" style="padding:16px; margin-bottom:16px;">
+        <h2 style="margin:0 0 10px;">Create Customer</h2>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input id="cName" type="text" placeholder="Customer Name" style="min-width:240px;" />
+          <input id="cPhone" type="text" placeholder="Phone (optional)" style="min-width:220px;" />
+          <button class="btn" id="btnCreateCustomer" type="button">Create</button>
+        </div>
+
+        <div id="createCustomerMsg" class="mutedSmall" style="margin-top:10px;"></div>
+      </section>
+
+      <!-- MONEY ACTIONS -->
+      <section class="card" style="padding:16px; margin-bottom:16px;">
+        <h2 style="margin:0 0 10px;">Money Actions (Deposit / Withdrawal / Bonus)</h2>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <select id="txKind" style="min-width:160px;">
+            <option value="deposit">Deposit</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="bonus">Bonus</option>
+          </select>
+
+          <select id="customerSelect" style="min-width:240px;"></select>
+
+          <select id="gameTypeSelect" style="min-width:200px;">
+            <option value="">Game Type (optional)</option>
+          </select>
+
+          <select id="bankType" style="min-width:220px;" required>
+            <option value="" selected disabled>Bank Type (required)</option>
+            <option value="BSP">BSP</option>
+            <option value="KINA">KINA</option>
+            <option value="CREDITLINE">CREDITLINE</option>
+            <option value="Cash">Cash</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <input id="referenceNo" type="text" placeholder="Reference No (optional)" style="min-width:220px;" />
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; align-items:center;">
+          <input id="amount" type="number" step="0.01" placeholder="Amount" style="min-width:200px;" />
+          <input id="notes" type="text" placeholder="Notes (optional)" style="flex:1; min-width:260px;" />
+
+          <input id="createdAtUtc" type="datetime-local" style="min-width:210px;" />
+
+          <button class="btn" id="btnSubmitTx" type="button">Submit</button>
+        </div>
+
+        <div class="mutedSmall" style="margin-top:6px;">
+          Date/time is auto-set in <b>Papua New Guinea</b> time (UTC+10).
+        </div>
+
+        <div id="txMsg" class="mutedSmall" style="margin-top:10px;"></div>
+      </section>
+
+      <!-- RECENT TRANSACTIONS -->
+      <section class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0 0 6px;">Recent Transactions</h2>
+            <div class="mutedSmall">
+              Updates instantly (SignalR). Use <b>Edit</b> to correct mistakes.
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center;">
+            <select id="txFilter">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+            </select>
+            <button class="btn ghost" id="btnRefreshTx" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="tableWrap" style="margin-top:12px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Type</th>
+                <th>Game</th>
+                <th class="right">Amount</th>
+                <th>Status</th>
+                <th>Bank</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="txTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ✅ EDIT MODAL (NEW) -->
+  <div id="editModal" class="modalOverlay" style="display:none;">
+    <div class="card" style="width:min(720px, 92vw); padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <div>
+          <h2 style="margin:0;">Edit Transaction</h2>
+          <div class="mutedSmall" id="editModalSub">Update and save changes.</div>
+        </div>
+        <button class="iconBtn" id="btnEditClose" title="Close">✕</button>
+      </div>
+
+      <div style="height:1px; background:rgba(255,255,255,0.08); margin:12px 0;"></div>
+
+      <div id="editModalErr" class="mutedSmall" style="min-height:18px;"></div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+        <div>
+          <div class="mutedSmall" style="margin:0 0 6px;">Amount</div>
+          <input id="editAmount" type="number" step="0.01" placeholder="Amount" />
+        </div>
+
+        <div>
+          <div class="mutedSmall" style="margin:0 0 6px;">Bank Type</div>
+          <select id="editBankType">
+            <option value="" disabled>Choose bank</option>
+            <option value="BSP">BSP</option>
+            <option value="KINA">KINA</option>
+            <option value="CREDITLINE">CREDITLINE</option>
+            <option value="Cash">Cash</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <div class="mutedSmall" style="margin:0 0 6px;">Game Type (optional)</div>
+          <select id="editGameType">
+            <option value="">Keep current</option>
+          </select>
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <div class="mutedSmall" style="margin:0 0 6px;">Reference No (optional)</div>
+          <input id="editRef" type="text" placeholder="Reference No" />
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <div class="mutedSmall" style="margin:0 0 6px;">Notes (optional)</div>
+          <input id="editNotes" type="text" placeholder="Notes" />
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+        <button class="btn ghost" id="btnEditCancel" type="button">Cancel</button>
+        <button class="btn" id="btnEditSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
+  <script src="js/realtime.js"></script>
+
+  <script src="js/staff.js"></script>
+
+  <script>
+    (function () {
+      const username = localStorage.getItem("username") || "User";
+      const role = localStorage.getItem("role") || "";
+      const avatar = (username || "U").trim().slice(0, 1).toUpperCase();
+
+      document.getElementById("userName").textContent = username;
+      document.getElementById("userRole").textContent = role;
+      document.getElementById("userAvatar").textContent = avatar;
+
+      function doLogout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("username");
+        window.location.href = "index.html";
+      }
+
+      document.getElementById("logoutBtn")?.addEventListener("click", (e) => { e.preventDefault(); doLogout(); });
+      document.getElementById("btnLogoutTop")?.addEventListener("click", doLogout);
+    })();
+  </script>
+
+  <!-- Minimal CSS for modal overlay (keeps your theme) -->
+  <style>
+    .modalOverlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,0.65);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index: 9999;
+    }
+    .modalOverlay .card{
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+    }
+  </style>
+</body>
+</html>

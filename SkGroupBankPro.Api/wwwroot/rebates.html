@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rebates Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">MAIN</div>
+      <a class="navItem" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
+      <a class="navItem active" href="rebates.html"><span class="navIcon">💸</span><span>Rebates</span></a>
+
+      <div class="sidebarBottom">
+        <a class="navItem danger" href="index.html" id="logoutBtn">
+          <span class="navIcon">⏻</span>
+          <span>Logout</span>
+        </a>
+
+        <div class="sidebarFooter">
+          <div class="mutedSmall">SpinKing Admin</div>
+          <div class="mutedSmall">Rebates</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <div class="crumbText">
+            <span class="gold">Rebates</span>
+            <span class="sep">/</span>
+            <span class="muted">Dashboard</span>
+          </div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="userChip">
+            <div class="avatar" id="avatar">A</div>
+            <div>
+              <div class="userName" id="userName">Admin</div>
+              <div class="userRole" id="userRole">Role</div>
+            </div>
+          </div>
+          <button class="iconBtn" id="logoutTopBtn" title="Logout">⏻</button>
+        </div>
+      </header>
+
+      <h1 style="margin:14px 0 16px;">Rebates Dashboard</h1>
+
+      <section class="card" style="padding:16px; margin-bottom:16px;">
+        <h2 style="margin:0 0 10px;">Run Daily Rebates</h2>
+        <div class="mutedSmall" style="margin-bottom:10px;">
+          (Optional) Manual run endpoint. In Option B, rebates are auto-created + auto-approved by the system.
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <label class="mutedSmall" for="rebateDate" style="min-width:130px;">Business Date (PNG)</label>
+          <input id="rebateDate" type="date" />
+          <button class="btn" id="btnRunRebates" type="button">Run Daily Rebates</button>
+        </div>
+
+        <pre id="rebateRunResult"
+          style="margin-top:12px; padding:12px; border-radius:10px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08); overflow:auto; max-height:220px;"></pre>
+      </section>
+
+      <!-- ✅ SHOW REBATES TRANSACTIONS LIST -->
+      <section class="card" style="padding:16px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0 0 6px;">Rebate Transactions</h2>
+            <div class="mutedSmall">Filter rebates by PNG business date (based on reference: REB-YYYYMMDD-...).</div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+            <div style="display:flex; gap:8px; align-items:center;">
+              <label class="mutedSmall" for="rebateListDate">PNG Date</label>
+              <input id="rebateListDate" type="date" />
+              <button class="btn ghost" id="btnRebateToday" type="button">Today</button>
+              <button class="btn ghost" id="btnRebateAllDates" type="button">All Dates</button>
+            </div>
+
+            <select id="rebateHistFilter">
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="rejected">Rejected</option>
+              <option value="all">All</option>
+            </select>
+
+            <button class="btn ghost" id="btnHistRefresh" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div id="rebateListMsg" class="mutedSmall" style="margin-top:10px;"></div>
+
+        <div class="tableWrap" style="margin-top:12px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Game</th>
+                <th class="right">Amount</th>
+                <th>Status</th>
+                <th>Ref</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rebateHistTbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" style="padding:16px;">
+        <h2 style="margin:0 0 10px;">Rebate Report (NetLoss → Expected Rebate)</h2>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <label class="mutedSmall" for="liveRebateDate" style="min-width:130px;">Business Date (PNG)</label>
+          <input id="liveRebateDate" type="date" />
+          <button class="btn ghost" id="btnLiveRefresh" type="button">Refresh</button>
+        </div>
+
+        <div id="liveRebateMsg" style="margin-top:10px;"></div>
+
+        <div class="tableWrap" style="margin-top:12px;">
+          <table class="table" id="rebateTable">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Game</th>
+                <th class="right">Net Loss</th>
+                <th class="right">Expected Rebate (5%)</th>
+                <th>Date (PNG)</th>
+              </tr>
+            </thead>
+            <tbody id="liveRebateTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
+  <script src="js/realtime.js"></script>
+
+  <script src="js/rebates.js"></script>
+
+  <script>
+    function doLogout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("username");
+      window.location.href = "index.html";
+    }
+    document.getElementById("logoutBtn")?.addEventListener("click", (e) => { e.preventDefault(); doLogout(); });
+    document.getElementById("logoutTopBtn")?.addEventListener("click", doLogout);
+
+    const name = localStorage.getItem("username") || "User";
+    const role = localStorage.getItem("role") || "";
+    document.getElementById("userName").textContent = name;
+    document.getElementById("userRole").textContent = role;
+    document.getElementById("avatar").textContent = name.trim().slice(0, 1).toUpperCase();
+  </script>
+</body>
+</html>

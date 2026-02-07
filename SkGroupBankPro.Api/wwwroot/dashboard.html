@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SK GROUP BANKPRO - Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" id="btnSidebarToggle" type="button" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">MAIN</div>
+      <a class="navItem active" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
+      <a class="navItem" href="rebates.html"><span class="navIcon">💸</span><span>Rebates</span></a>
+
+      <div class="sidebarBottom">
+        <a class="navItem danger" href="index.html" id="logoutBtn">
+          <span class="navIcon">⏻</span>
+          <span>Logout</span>
+        </a>
+        <div class="sidebarFooter">
+          <div class="mutedSmall">SpinKing Admin</div>
+          <div class="mutedSmall">Preview</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <button class="iconBtn" title="Menu">≡</button>
+          <div class="crumbText">
+            <span class="muted">Admin</span>
+            <span class="sep">/</span>
+            <span class="gold">Dashboard</span>
+          </div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="userChip">
+            <div class="avatar" id="userAvatar">A</div>
+            <div class="userMeta">
+              <div class="userName" id="userName">Admin</div>
+              <div class="userRole" id="userRole">Administrator</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="statsGrid">
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">Total Customers</div>
+              <div class="statValue" id="statTotalCustomers">0</div>
+            </div>
+            <div class="statIcon">👥</div>
+          </div>
+          <div class="pill" id="pillPngDate">PNG: -</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">Today Deposits (Approved)</div>
+              <div class="statValue" id="statTodayDeposits">0.00</div>
+            </div>
+            <div class="statIcon">⬇️</div>
+          </div>
+          <div class="pill good">Today</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">Today Withdrawals (Approved)</div>
+              <div class="statValue" id="statTodayWithdrawals">0.00</div>
+            </div>
+            <div class="statIcon">⬆️</div>
+          </div>
+          <div class="pill warn">Today</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">Today Profit (Approved)</div>
+              <div class="statValue" id="statTodayProfit">0.00</div>
+
+              <div class="statLabel" style="margin-top:10px;">Today Rebates Approved</div>
+              <div class="statValue" id="statTodayRebatesApproved">0.00</div>
+            </div>
+            <div class="statIcon">💰</div>
+          </div>
+          <div class="pill neutral">Today</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">MTD Deposits (Approved)</div>
+              <div class="statValue" id="statMtdDeposits">0.00</div>
+            </div>
+            <div class="statIcon">📈</div>
+          </div>
+          <div class="pill neutral">MTD</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">MTD Withdrawals (Approved)</div>
+              <div class="statValue" id="statMtdWithdrawals">0.00</div>
+            </div>
+            <div class="statIcon">📉</div>
+          </div>
+          <div class="pill neutral">MTD</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">MTD Profit (Approved)</div>
+              <div class="statValue" id="statMtdProfit">0.00</div>
+
+              <div class="statLabel" style="margin-top:10px;">Active Games</div>
+              <div class="statValue" id="statActiveGames">0</div>
+            </div>
+            <div class="statIcon">🎮</div>
+          </div>
+          <div class="pill neutral">MTD</div>
+        </div>
+
+        <div class="card statCard">
+          <div class="statTop">
+            <div>
+              <div class="statLabel">Pending Deposits</div>
+              <div class="statValue" id="statPendingDeposits">0</div>
+
+              <div class="statLabel" style="margin-top:10px;">Pending Withdrawals</div>
+              <div class="statValue" id="statPendingWithdrawals">0</div>
+
+              <div class="statLabel" style="margin-top:10px;">Pending Rebates</div>
+              <div class="statValue" id="statPendingRebates">0</div>
+            </div>
+            <div class="statIcon">⏳</div>
+          </div>
+          <div class="pill warn">Pending</div>
+        </div>
+      </section>
+
+      <section class="card tableCard">
+        <div class="tableHeader">
+          <div class="tableTitle">Recent Transactions</div>
+          <div class="tableActions">
+            <button class="btn ghost" id="btnRefreshDashboard" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Type</th>
+                <th class="right">Amount</th>
+                <th class="center">Status</th>
+                <th class="right">Date</th>
+              </tr>
+            </thead>
+            <tbody id="recentTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
+  <script src="js/realtime.js"></script>
+
+  <script src="js/admin-dashboard.js"></script>
+
+  <script>
+    (function () {
+      const username = localStorage.getItem("username") || "Admin";
+      const role = localStorage.getItem("role") || "Administrator";
+      const avatar = (username || "A").trim().slice(0, 1).toUpperCase();
+
+      document.getElementById("userName").textContent = username;
+      document.getElementById("userRole").textContent = role;
+      document.getElementById("userAvatar").textContent = avatar;
+    })();
+
+    document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      logout();
+    });
+  </script>
+</body>
+</html>

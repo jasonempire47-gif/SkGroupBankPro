@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SK GROUP BANKPRO - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    /* RESET */
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: system-ui, Arial, sans-serif;
+    }
+
+    body { overflow: hidden; }
+
+    /* BACKGROUND IMAGE */
+    .bg {
+      position: fixed;
+      inset: 0;
+      background-image: url("./assets/bg.png"); /* ✅ make sure this file exists */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      z-index: 0;
+    }
+
+    /* DARK OVERLAY */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1;
+    }
+
+    /* CENTER WRAPPER */
+    .login-wrap {
+      position: relative;
+      z-index: 2;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* LOGIN CARD */
+    .login-card {
+      width: min(380px, 92vw);
+      padding: 22px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+
+    /* LOGO */
+    .brand-logo {
+      width: 70px;
+      height: 70px;
+      object-fit: contain;
+      margin-bottom: 10px;
+      border-radius: 10px;
+    }
+
+    /* TITLE */
+    .brand-title {
+      color: #fff;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 0.8px;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+
+    /* INPUTS */
+    .login-card input {
+      width: 100%;
+      height: 38px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+      padding: 0 12px;
+      margin: 8px 0;
+      background: rgba(255,255,255,0.95);
+      font-size: 14px;
+    }
+
+    /* BUTTON */
+    .login-card button {
+      width: 100%;
+      height: 40px;
+      margin-top: 12px;
+      border-radius: 7px;
+      border: none;
+      background: #f2c200;
+      font-weight: 800;
+      cursor: pointer;
+      color: #111;
+    }
+
+    .login-card button:hover { filter: brightness(0.95); }
+    .login-card button:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    /* ERROR */
+    .login-error {
+      margin-top: 10px;
+      color: #ffb3b3;
+      font-size: 13px;
+      min-height: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg"></div>
+  <div class="overlay"></div>
+
+  <div class="login-wrap">
+    <div class="login-card">
+      <img src="./assets/logo.png" class="brand-logo" alt="SK Group Logo" />
+
+      <div class="brand-title">
+        SK GROUP<br> BANKPRO
+      </div>
+
+      <input type="text" id="username" placeholder="Username" autocomplete="username" />
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
+
+      <button id="btnLogin" type="button">Login</button>
+
+      <div id="error" class="login-error"></div>
+    </div>
+  </div>
+
+  <script>
+    // ✅ API base (you are running on 5000)
+    const API_BASE = "http://localhost:5000";
+
+    const el = (id) => document.getElementById(id);
+
+    // If already logged in, go dashboard
+    (function init() {
+      const token = localStorage.getItem("token");
+      if (token) {
+        // optional: you can validate token by calling /api/dashboard/summary
+        // but for now, just redirect
+        window.location.href = "./dashboard.html";
+      }
+    })();
+
+    el("btnLogin").addEventListener("click", login);
+    el("password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") login();
+    });
+
+    async function login() {
+      const user = el("username").value.trim();
+      const pass = el("password").value.trim();
+      const error = el("error");
+      const btn = el("btnLogin");
+
+      error.textContent = "";
+
+      if (!user || !pass) {
+        error.textContent = "Please enter username and password.";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Logging in...";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+
+        if (!res.ok) {
+          // 401 will land here
+          error.textContent = res.status === 401
+            ? "Invalid username or password."
+            : `Login failed (HTTP ${res.status}).`;
+          return;
+        }
+
+        const data = await res.json();
+        if (!data?.token) {
+          error.textContent = "Login failed: no token returned.";
+          return;
+        }
+
+        // Save token + user info
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("username", data.username || user);
+        localStorage.setItem("role", data.role || "");
+
+        // Redirect
+        window.location.href = "./dashboard.html";
+      } catch (err) {
+        error.textContent = "Cannot reach API. Is backend running on port 5000?";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Login";
+      }
+    }
+  </script>
+</body>
+</html>
