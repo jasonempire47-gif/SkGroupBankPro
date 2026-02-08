@@ -1,7 +1,7 @@
 // wwwroot/js/api.js
 (function () {
-  // ✅ Option 1: same origin (UI + API both on https://skgroupbankpro-4.onrender.com)
-  window.API_BASE = "https://skgroupbankpro-4.onrender.com";
+  // ✅ Option 1: same origin (UI + API both on https://skgroupbankpro-3.onrender.com)
+  window.API_BASE = "https://skgroupbankpro-3.onrender.com";
 
   window.escapeHtml = function escapeHtml(str) {
     if (str == null) return "";
