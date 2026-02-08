@@ -4,20 +4,34 @@
     return localStorage.getItem("token") || "";
   }
 
-  function getApiBaseFromApiFetch() {
-    // We don't have direct access to API_BASE variable from api.js,
-    // so we derive it by requesting a relative URL and reading location.
-    // BUT easiest: allow user to optionally set localStorage API_BASE.
-    const ls = (localStorage.getItem("API_BASE") || "").trim();
-    if (ls) return ls.replace(/\/+$/, "");
-    // fallback: assume api.js default (localhost:5000)
+  function normalizeBase(url) {
+    return String(url || "").trim().replace(/\/+$/, "");
+  }
+
+  function getApiBase() {
+    // ✅ Priority:
+    // 1) localStorage override (optional)
+    // 2) window.API_BASE from api.js (recommended)
+    // 3) same-origin (if UI is served by the API)
+    // 4) localhost fallback
+
+    const ls = normalizeBase(localStorage.getItem("API_BASE"));
+    if (ls) return ls;
+
+    const wb = normalizeBase(window.API_BASE);
+    if (wb) return wb;
+
+    const origin = normalizeBase(location.origin);
+    if (origin && origin !== "null") return origin;
+
     return "http://localhost:5000";
   }
 
   const callbacks = new Set();
   let connection = null;
 
-  window.onDashboardUpdated = function (cb) {
+  window.onDashboardUpdated = function onDashboardUpdated(cb) {
+    if (typeof cb !== "function") return () => {};
     callbacks.add(cb);
     return () => callbacks.delete(cb);
   };
@@ -29,8 +43,7 @@
     }
     if (connection) return;
 
-    const base = getApiBaseFromApiFetch();
-    const token = getToken();
+    const base = getApiBase();
 
     connection = new signalR.HubConnectionBuilder()
       .withUrl(`${base}/hubs/dashboard`, {
@@ -47,11 +60,17 @@
 
     try {
       await connection.start();
-      console.log("[realtime] connected");
+      console.log("[realtime] connected:", `${base}/hubs/dashboard`);
     } catch (e) {
       console.warn("[realtime] connect failed:", e);
-      // allow retry if needed
+      try { await connection.stop(); } catch {}
       connection = null;
     }
+  };
+
+  window.stopRealtime = async function stopRealtime() {
+    if (!connection) return;
+    try { await connection.stop(); } catch {}
+    connection = null;
   };
 })();

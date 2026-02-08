@@ -20,10 +20,22 @@ document.addEventListener("DOMContentLoaded", () => {
     return n.toFixed(2);
   }
 
-  function fmtDate(x) {
-    const d = new Date(x);
-    if (isNaN(d)) return escapeHtml(String(x ?? ""));
-    return d.toLocaleString();
+  // ✅ Render time in PNG (Port Moresby)
+  function fmtDate(utcString) {
+    if (!utcString) return "-";
+    const d = new Date(utcString);
+    if (isNaN(d.getTime())) return String(utcString);
+
+    return d.toLocaleString("en-GB", {
+      timeZone: "Pacific/Port_Moresby",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
   }
 
   function buildQuery() {
@@ -34,8 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const q = (txSearch?.value || "").trim();
     if (q) qs.set("q", q);
 
+    // NOTE: your backend currently filters pending via "q" (status search),
+    // not via a "status=pending" query param.
     const filter = (txFilter?.value || "all").toLowerCase();
-    if (filter === "pending") qs.set("status", "pending");
+    if (filter === "pending") qs.set("q", "pending");
 
     return qs.toString();
   }
@@ -43,46 +57,45 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadAll() {
     const res = await apiFetch(`/api/transactions/all?${buildQuery()}`);
 
-    const items = res.items || [];
-    const total = res.total || 0;
+    const items = Array.isArray(res?.items) ? res.items : [];
+    const total = Number(res?.total || 0);
     const maxPage = Math.max(1, Math.ceil(total / pageSize));
 
-    tbody.innerHTML = items.map(r => {
-      const id = r.id ?? "";
-      const customer = r.customer ?? "N/A";
-      const type = r.type ?? "";
-      const game = r.game ?? "";
-      const amount = r.amount ?? 0;
-      const status = r.status ?? "";
-      const bank = r.bank ?? "";
-      const createdAt = r.createdAt ?? "";
+    tbody.innerHTML = items
+      .map((r) => {
+        const id = r.id ?? "";
+        const customer = r.customerName ?? "N/A";
+        const type = r.typeName ?? "";
+        const game = r.gameTypeName ?? "";
+        const amount = r.amount ?? 0;
+        const status = r.statusName ?? "";
+        const bank = r.bankType ?? "";
+        const createdUtc = r.createdAtUtc ?? r.createdAt ?? "";
 
-      // Actions column: keep placeholder so your existing staff.js edit handlers can still work if they are delegated by row/id
-      // If your staff.js uses buttons with specific classes/attributes, update here to match.
-      const actionsHtml = `
-        <button class="btn ghost btnEditTx" data-id="${escapeHtml(String(id))}" type="button">Edit</button>
-      `;
+        const actionsHtml = `
+          <button class="btn ghost btnEditTx" data-id="${escapeHtml(String(id))}" type="button">Edit</button>
+        `;
 
-      return `
-        <tr>
-          <td>${escapeHtml(String(id))}</td>
-          <td>${escapeHtml(customer)}</td>
-          <td>${escapeHtml(type)}</td>
-          <td>${escapeHtml(game)}</td>
-          <td class="right">${money(amount)}</td>
-          <td>${escapeHtml(status)}</td>
-          <td>${escapeHtml(bank)}</td>
-          <td>${escapeHtml(fmtDate(createdAt))}</td>
-          <td>${actionsHtml}</td>
-        </tr>
-      `;
-    }).join("");
+        return `
+          <tr>
+            <td>${escapeHtml(String(id))}</td>
+            <td>${escapeHtml(String(customer))}</td>
+            <td>${escapeHtml(String(type))}</td>
+            <td>${escapeHtml(String(game))}</td>
+            <td class="right">${escapeHtml(money(amount))}</td>
+            <td>${escapeHtml(String(status))}</td>
+            <td>${escapeHtml(String(bank))}</td>
+            <td>${escapeHtml(fmtDate(createdUtc))}</td>
+            <td>${actionsHtml}</td>
+          </tr>
+        `;
+      })
+      .join("");
 
-    txCount.textContent = `${total} record(s)`;
-    txPageInfo.textContent = `Page ${page} / ${maxPage}`;
-
-    txPrev.disabled = page <= 1;
-    txNext.disabled = page >= maxPage;
+    if (txCount) txCount.textContent = `${total} record(s)`;
+    if (txPageInfo) txPageInfo.textContent = `Page ${page} / ${maxPage}`;
+    if (txPrev) txPrev.disabled = page <= 1;
+    if (txNext) txNext.disabled = page >= maxPage;
   }
 
   // Paging

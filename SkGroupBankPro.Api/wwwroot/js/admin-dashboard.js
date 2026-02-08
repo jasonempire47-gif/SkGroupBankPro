@@ -32,26 +32,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   const txPageInfo = $("txPageInfo");
   const txCount = $("txCount");
 
-  // ✅ New: timezone mode
+  // ✅ Optional: timezone dropdown (png | local | utc)
+  // If you do NOT have it in HTML, this stays null and defaults to PNG.
   const tzMode = $("tzMode");
 
   let txPage = 1;
   const txPageSize = 25;
   let txMaxPage = 1;
 
+  // Prevent overlapping refresh calls
+  let refreshing = false;
+
   function money(x) {
-    return Number(x || 0).toFixed(2);
+    const n = Number(x || 0);
+    return Number.isFinite(n) ? n.toFixed(2) : "0.00";
   }
 
   function getTimeMode() {
-    return (tzMode?.value || "png").toLowerCase(); // png | local | utc
+    return String(tzMode?.value || "png").toLowerCase(); // png | local | utc
   }
 
-  // ✅ Always parse SAFE UTC first
   function parseUtc(utcString) {
     if (!utcString) return null;
     const d = new Date(utcString);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   }
 
   function fmtDateFromUtc(utcString) {
@@ -60,22 +64,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const mode = getTimeMode();
 
+    // NOTE: use en-GB so it looks like 08/02/2026, 13:45:48
     if (mode === "utc") {
-      return d.toLocaleString("en-GB", {
-        timeZone: "UTC",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false
-      }) + " UTC";
+      return (
+        d.toLocaleString("en-GB", {
+          timeZone: "UTC",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        }) + " UTC"
+      );
     }
 
     if (mode === "local") {
-      // viewer local time
-      return d.toLocaleString("en-GB", {
+      return (
+        d.toLocaleString("en-GB", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        }) + " Local"
+      );
+    }
+
+    // Default: PNG time
+    return (
+      d.toLocaleString("en-GB", {
+        timeZone: "Pacific/Port_Moresby",
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -83,42 +105,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         minute: "2-digit",
         second: "2-digit",
         hour12: false
-      }) + " Local";
-    }
-
-    // default PNG
-    return d.toLocaleString("en-GB", {
-      timeZone: "Pacific/Port_Moresby",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    }) + " PNG";
-  }
-
-  async function loadStats() {
-    const d = await apiFetch("/api/admin-dashboard/stats");
-
-    statTotalCustomers.textContent = d.totalCustomers ?? 0;
-    pillPngDate.textContent = "PNG: " + (d.pngDate ?? "-");
-
-    statTodayDeposits.textContent = money(d.todayDeposits ?? 0);
-    statTodayWithdrawals.textContent = money(d.todayWithdrawals ?? 0);
-    statTodayProfit.textContent = money(d.todayProfit ?? 0);
-    statTodayRebatesApproved.textContent = money(d.todayRebatesApproved ?? 0);
-
-    statMtdDeposits.textContent = money(d.mtdDeposits ?? 0);
-    statMtdWithdrawals.textContent = money(d.mtdWithdrawals ?? 0);
-    statMtdProfit.textContent = money(d.mtdProfit ?? 0);
-
-    statActiveGames.textContent = d.activeGames ?? 0;
-
-    statPendingDeposits.textContent = d.pendingDeposits ?? 0;
-    statPendingWithdrawals.textContent = d.pendingWithdrawals ?? 0;
-    statPendingRebates.textContent = d.pendingRebates ?? 0;
+      }) + " PNG"
+    );
   }
 
   function rowClassByStatus(statusName) {
@@ -127,6 +115,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (s === "rejected") return "rowRejected";
     if (s === "approved") return "rowApproved";
     return "";
+  }
+
+  async function loadStats() {
+    const d = await apiFetch("/api/admin-dashboard/stats");
+
+    if (statTotalCustomers) statTotalCustomers.textContent = d.totalCustomers ?? 0;
+    if (pillPngDate) pillPngDate.textContent = "PNG: " + (d.pngDate ?? "-");
+
+    if (statTodayDeposits) statTodayDeposits.textContent = money(d.todayDeposits ?? 0);
+    if (statTodayWithdrawals) statTodayWithdrawals.textContent = money(d.todayWithdrawals ?? 0);
+    if (statTodayProfit) statTodayProfit.textContent = money(d.todayProfit ?? 0);
+    if (statTodayRebatesApproved) statTodayRebatesApproved.textContent = money(d.todayRebatesApproved ?? 0);
+
+    if (statMtdDeposits) statMtdDeposits.textContent = money(d.mtdDeposits ?? 0);
+    if (statMtdWithdrawals) statMtdWithdrawals.textContent = money(d.mtdWithdrawals ?? 0);
+    if (statMtdProfit) statMtdProfit.textContent = money(d.mtdProfit ?? 0);
+
+    if (statActiveGames) statActiveGames.textContent = d.activeGames ?? 0;
+
+    if (statPendingDeposits) statPendingDeposits.textContent = d.pendingDeposits ?? 0;
+    if (statPendingWithdrawals) statPendingWithdrawals.textContent = d.pendingWithdrawals ?? 0;
+    if (statPendingRebates) statPendingRebates.textContent = d.pendingRebates ?? 0;
   }
 
   async function loadAllTransactions() {
@@ -149,32 +159,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (txPrev) txPrev.disabled = txPage <= 1;
     if (txNext) txNext.disabled = txPage >= txMaxPage;
 
-    tbody.innerHTML = items.map(r => {
-      const player = r.customerName ?? "N/A";
-      const type = r.typeName ?? "";
-      const status = r.statusName ?? "";
-      const amount = r.amount ?? 0;
+    if (!tbody) return;
 
-      // ✅ Use timezone-safe field
-      const createdUtc = r.createdAtUtc ?? "";
-
-      const cls = rowClassByStatus(status);
-
-      return `
-        <tr class="${cls}">
-          <td>${escapeHtml(String(player))}</td>
-          <td>${escapeHtml(String(type))}</td>
-          <td class="right">${escapeHtml(money(amount))}</td>
-          <td class="center">${escapeHtml(String(status))}</td>
-          <td class="right">${escapeHtml(fmtDateFromUtc(createdUtc))}</td>
+    if (items.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="mutedSmall" style="padding:14px;">
+            No records found.
+          </td>
         </tr>
       `;
-    }).join("");
+      return;
+    }
+
+    tbody.innerHTML = items
+      .map((r) => {
+        const player = r.customerName ?? "N/A";
+        const type = r.typeName ?? "";
+        const status = r.statusName ?? "";
+        const amount = r.amount ?? 0;
+
+        // ✅ timezone-safe field (your API must return createdAtUtc)
+        const createdUtc = r.createdAtUtc ?? r.createdAt ?? "";
+
+        const cls = rowClassByStatus(status);
+
+        return `
+          <tr class="${cls}">
+            <td>${escapeHtml(String(player))}</td>
+            <td>${escapeHtml(String(type))}</td>
+            <td class="right">${escapeHtml(money(amount))}</td>
+            <td class="center">${escapeHtml(String(status))}</td>
+            <td class="right">${escapeHtml(fmtDateFromUtc(createdUtc))}</td>
+          </tr>
+        `;
+      })
+      .join("");
   }
 
   async function refreshAll() {
-    await loadStats();
-    await loadAllTransactions();
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      await loadStats();
+      await loadAllTransactions();
+    } finally {
+      refreshing = false;
+    }
   }
 
   // ---- Events ----
@@ -197,6 +228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  // Debounced search
   let t = null;
   txSearch?.addEventListener("input", () => {
     if (t) clearTimeout(t);
@@ -206,7 +238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 350);
   });
 
-  // ✅ re-render dates immediately if user changes mode
+  // ✅ re-render dates if user changes mode
   tzMode?.addEventListener("change", async () => {
     await loadAllTransactions();
   });
@@ -219,13 +251,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     refreshAll().catch(() => {});
   }, 30000);
 
-  // ✅ If SignalR helpers exist, refresh on push updates too
+  // ✅ SignalR push refresh
   try {
     if (typeof startRealtime === "function") {
       await startRealtime();
     }
     if (typeof onDashboardUpdated === "function") {
-      onDashboardUpdated(() => refreshAll());
+      onDashboardUpdated(() => {
+        // keep current page but refresh data
+        refreshAll().catch(() => {});
+      });
     }
   } catch {
     // ignore realtime failures
