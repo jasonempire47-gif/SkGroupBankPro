@@ -57,6 +57,9 @@
         </div>
       </header>
 
+      <!-- =========================
+           BANK SUMMARY
+           ========================= -->
       <section class="card tableCard" style="margin-top:14px;">
         <div class="tableHeader">
           <div>
@@ -81,7 +84,7 @@
                 <th class="right" style="width:160px;">Opening</th>
                 <th class="right" style="width:160px;">Approved Net</th>
                 <th class="right" style="width:170px;">Balance</th>
-                <th class="center" style="width:120px;">Actions</th>
+                <th class="center" style="width:160px;">Actions</th>
               </tr>
             </thead>
             <tbody id="bankTbody"></tbody>
@@ -93,50 +96,76 @@
           <div class="mutedSmall" id="bankUpdated">—</div>
         </div>
       </section>
+
+      <!-- =========================
+           ALL TRANSACTIONS (FINANCE)
+           ========================= -->
+      <section class="card tableCard" style="margin-top:14px;">
+        <div class="tableHeader">
+          <div>
+            <div class="tableTitle">All Transactions</div>
+            <div class="mutedSmall">Approve/Reject only for Pending Deposits. Edit for corrections.</div>
+          </div>
+
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+            <input id="txSearch" type="text" placeholder="Search customer / type / status / bank / ref" style="min-width:280px;">
+            <select id="txFilter">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+            </select>
+            <button class="btn ghost" id="btnRefreshTx" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:80px;">ID</th>
+                <th>Customer</th>
+                <th style="width:140px;">Type</th>
+                <th style="width:160px;">Game</th>
+                <th class="right" style="width:140px;">Amount</th>
+                <th style="width:130px;">Status</th>
+                <th style="width:140px;">Bank</th>
+                <th style="width:160px;">Ref</th>
+                <th class="right" style="width:190px;">Date</th>
+                <th class="center" style="width:220px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="txTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px 14px;">
+          <div class="mutedSmall" id="txCount">0 record(s)</div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn ghost" id="txPrev" type="button">Prev</button>
+            <span class="mutedSmall" id="txPageInfo">Page 1 / 1</span>
+            <button class="btn ghost" id="txNext" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
-  <!-- Edit Modal -->
-  <div id="bankModal" class="modalOverlay" style="display:none;">
+  <!-- =========================
+       SHARED MODAL (for finance.js)
+       ========================= -->
+  <div id="modalBackdrop" class="modalBackdrop" style="display:none;">
     <div class="modalCard">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <div>
-          <div class="tableTitle" id="modalTitle">Edit Bank</div>
-          <div class="mutedSmall">Saved to your browser (localStorage).</div>
-        </div>
-        <button class="iconBtn" id="btnCloseModal" type="button">✕</button>
+        <div class="modalTitle" id="modalTitle">Modal</div>
+        <button class="iconBtn" id="btnModalCancel" type="button">✕</button>
       </div>
 
-      <div class="formGrid" style="margin-top:12px;">
-        <label class="field">
-          <div class="mutedSmall">Bank Name</div>
-          <input id="mBankName" type="text" />
-        </label>
+      <div id="modalBody" class="modalBody"></div>
 
-        <label class="field">
-          <div class="mutedSmall">Account Name</div>
-          <input id="mAccountName" type="text" />
-        </label>
-
-        <label class="field">
-          <div class="mutedSmall">Account No.</div>
-          <input id="mAccountNo" type="text" />
-        </label>
-
-        <label class="field">
-          <div class="mutedSmall">Opening Balance</div>
-          <input id="mOpening" type="number" step="0.01" />
-        </label>
-
-        <label class="field" style="grid-column:1 / -1;">
-          <div class="mutedSmall">Notes</div>
-          <input id="mNotes" type="text" />
-        </label>
-      </div>
-
-      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
-        <button class="btn ghost" id="btnDeleteBank" type="button">Delete</button>
-        <button class="btn" id="btnSaveBank" type="button">Save</button>
+      <div class="modalActions">
+        <button class="btn ghost" id="btnModalCancel2" type="button">Cancel</button>
+        <button class="btn" id="btnModalSave" type="button">Save</button>
       </div>
     </div>
   </div>
@@ -144,6 +173,11 @@
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/ui.js"></script>
+
+  <!-- SignalR (for live updates) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
+  <script src="js/realtime.js"></script>
+
   <script src="js/finance.js"></script>
 
   <script>
@@ -155,12 +189,24 @@
       document.getElementById("userName").textContent = username;
       document.getElementById("userRole").textContent = role;
       document.getElementById("userAvatar").textContent = avatar;
-    })();
 
-    document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      logout();
-    });
+      // Logout
+      document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        logout();
+      });
+
+      // modal cancel buttons
+      document.getElementById("btnModalCancel")?.addEventListener("click", () => {
+        const el = document.getElementById("modalBackdrop");
+        if (el) el.style.display = "none";
+      });
+
+      document.getElementById("btnModalCancel2")?.addEventListener("click", () => {
+        const el = document.getElementById("modalBackdrop");
+        if (el) el.style.display = "none";
+      });
+    })();
   </script>
 </body>
 </html>

@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return n.toFixed(2);
   }
 
-  // ✅ Date: show PNG time from createdAtUtc
+  // ✅ Date: PNG time
   function fmtDatePng(utcString) {
     if (!utcString) return "-";
     const d = new Date(utcString);
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let sign = 0;
       if (type.includes("withdraw")) sign = -1;
-      else sign = +1; // deposit/bonus credit
+      else sign = +1;
 
       map.set(bank, (map.get(bank) || 0) + sign * amt);
     }
@@ -150,8 +150,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function fetchAllApprovedForBankSummary() {
-    // For bank summary we can just pull first N pages if needed.
-    // Keep it simple: fetch first 200 rows (max pageSize = 200).
     const res = await apiFetch(`/api/transactions/all?page=1&pageSize=200`);
     const items = Array.isArray(res?.items) ? res.items : [];
     return items;
@@ -165,7 +163,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let banks = loadBanks();
 
-    // auto-add any bank names seen in transactions (so table is not empty)
     for (const [bankName] of netMap.entries()) {
       banks = upsertBank(banks, bankName, {});
     }
@@ -177,7 +174,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return s.includes(q);
     });
 
-    bankTbody.innerHTML = filtered.map((b, idx) => {
+    bankTbody.innerHTML = filtered.map((b) => {
       const name = b.name || "—";
       const accountName = b.accountName || "";
       const accountNo = b.accountNo || "";
@@ -245,7 +242,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         let list = loadBanks();
 
-        // handle rename: remove old if name changed
         const oldNameLower = (b.name || "").toLowerCase();
         const newNameLower = name.toLowerCase();
         if (oldNameLower && oldNameLower !== newNameLower) {
@@ -262,11 +258,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   btnAddBank?.addEventListener("click", () => openBankEditor(""));
 
   bankSearch?.addEventListener("input", () => {
-    // fast client-side filter; re-render uses computed totals too
     renderBanks().catch(() => {});
   });
 
-  // bank actions (delegated)
   bankTbody?.addEventListener("click", async (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -293,7 +287,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const q = (txSearch?.value || "").trim();
     const filter = (txFilter?.value || "all").toLowerCase();
 
-    // If pending filter, enforce q contains pending (backend filters by q only)
     if (filter === "pending") {
       const merged = q ? `${q} pending` : "pending";
       qs.set("q", merged);
@@ -316,10 +309,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const id = r.id;
     const status = String(r.statusName || "").toLowerCase();
 
-    // Always allow Edit (finance correction)
+    // ✅ FIX: must use typeName (not typename)
+    const type = String(r.typeName || "").toLowerCase();
+
     const editBtn = `<button class="btn ghost btnEditTx" data-id="${id}" type="button">Edit</button>`;
 
-    if (status === "pending") {
+    // ✅ ONLY pending deposits get approve/reject
+    if (status === "pending" && type === "deposit") {
       return `
         <div style="display:flex; gap:8px; justify-content:center;">
           <button class="btn ghost btnApproveTx" data-id="${id}" type="button">Approve</button>
@@ -377,13 +373,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function refreshAll() {
-    await Promise.all([
-      renderBanks(),
-      loadTransactions()
-    ]);
+    await Promise.all([renderBanks(), loadTransactions()]);
   }
 
-  // Paging
   txPrev?.addEventListener("click", async () => {
     if (page > 1) {
       page--;
@@ -463,7 +455,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (btn.classList.contains("btnEditTx")) {
-      // Pull row data by re-fetching page and finding item (simple & safe)
       const res = await apiFetch(`/api/transactions/all?${buildTxQuery()}`);
       const items = Array.isArray(res?.items) ? res.items : [];
       const r = items.find(x => Number(x.id) === id);
@@ -493,7 +484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <input id="mNotes" class="formInput" value="${escapeHtml(r.notes || "")}" placeholder="Notes"/>
           </div>
           <div class="mutedSmall" style="margin-top:10px;">
-            This updates the existing record (for finance corrections).
+            Finance/Admin correction only.
           </div>
         `,
         async () => {
@@ -521,13 +512,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           await refreshAll();
         }
       );
-
       return;
     }
   });
 
-  // ====== Minimal modal styling using existing theme ======
-  // (If you already have modal CSS, you can remove this)
+  // Minimal modal styling
   const style = document.createElement("style");
   style.textContent = `
     .modalBackdrop{
@@ -536,25 +525,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       background: rgba(0,0,0,.55);
       z-index: 9999;
       padding: 18px;
-    }
-    .modalCard{
-      width: min(560px, 96vw);
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(18,18,20,.82);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 18px 60px rgba(0,0,0,.65);
-      padding: 14px;
-    }
-    .modalTitle{
-      font-weight: 900;
-      color: #f2c200;
-      margin: 4px 4px 10px;
-    }
-    .modalBody{ padding: 6px 4px 10px; }
-    .modalActions{
-      display:flex; justify-content:flex-end; gap:10px;
-      padding: 6px 4px 2px;
     }
     .formGrid{
       display:grid;
@@ -572,31 +542,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       padding: 0 12px;
       outline: none;
     }
-    .badge.ok{ border-color: rgba(46,204,113,.30); background: rgba(46,204,113,.12); }
-    .badge.warn{ border-color: rgba(243,156,18,.30); background: rgba(243,156,18,.12); }
-    .badge.bad{ border-color: rgba(231,76,60,.30); background: rgba(231,76,60,.12); }
   `;
   document.head.appendChild(style);
 
-  // ============ REALTIME AUTO-REFRESH ============
+  // Realtime auto-refresh
   async function wireRealtime() {
     try {
       if (typeof startRealtime === "function") await startRealtime();
       if (typeof onDashboardUpdated === "function") {
-        onDashboardUpdated(() => {
-          // refresh only transactions + banks
-          refreshAll().catch(() => {});
-        });
+        onDashboardUpdated(() => refreshAll().catch(() => {}));
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
-  // Initial load
   await refreshAll();
   await wireRealtime();
-
-  // Auto refresh every 30s (free Render can sleep; this also helps UI recover)
   setInterval(() => refreshAll().catch(() => {}), 30000);
 });

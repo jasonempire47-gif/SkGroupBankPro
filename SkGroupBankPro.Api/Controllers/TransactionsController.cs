@@ -55,21 +55,24 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
                 gameTypeName = g != null ? g.Name : null,
 
                 notes = t.Notes,
-                createdAt = t.CreatedAtUtc
+                createdAtUtc = t.CreatedAtUtc
             }
         ).Take(take).ToListAsync();
 
         return Ok(data);
     }
 
+    // ✅ Staff can CREATE deposit, but it will be Pending (for Finance approval)
     [HttpPost("deposit")]
     [Authorize(Roles = "Admin,Finance,Staff")]
     public Task<IActionResult> Deposit([FromBody] CreateTxRequest req) => CreateTx(req, TxType.Deposit);
 
+    // (You didn't request change, so keep Withdrawal auto-approved)
     [HttpPost("withdrawal")]
     [Authorize(Roles = "Admin,Finance,Staff")]
     public Task<IActionResult> Withdrawal([FromBody] CreateTxRequest req) => CreateTx(req, TxType.Withdrawal);
 
+    // ✅ Bonus is auto-approved (no need Finance action)
     [HttpPost("bonus")]
     [Authorize(Roles = "Admin,Finance,Staff")]
     public Task<IActionResult> Bonus([FromBody] CreateTxRequest req) => CreateTx(req, TxType.Bonus);
@@ -88,10 +91,16 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
             if (!gameOk) return BadRequest("Invalid or disabled game type.");
         }
 
-        // ✅ NEW RULE:
-        // Deposit + Withdrawal = auto-approved (no pending)
-        // Bonus = pending (but approvable by Admin/Finance/Staff)
-        var status = (type == TxType.Bonus) ? TxStatus.Pending : TxStatus.Approved;
+        // ✅ NEW RULES:
+        // Deposit = Pending (Finance approves/rejects)
+        // Bonus = Approved (auto-approved)
+        // Withdrawal = Approved (keep auto)
+        var status = type switch
+        {
+            TxType.Deposit => TxStatus.Pending,
+            TxType.Bonus => TxStatus.Approved,
+            _ => TxStatus.Approved
+        };
 
         var tx = new WalletTransaction
         {
@@ -130,9 +139,9 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         });
     }
 
-    // ✅ NEW RULE: Bonus control by Admin/Finance/Staff
+    // ✅ Finance-only approval control
     [HttpPatch("{id:int}/approve")]
-    [Authorize(Roles = "Admin,Finance,Staff")]
+    [Authorize(Roles = "Admin,Finance")]
     public async Task<IActionResult> Approve(int id)
     {
         var tx = await _db.WalletTransactions.FirstOrDefaultAsync(x => x.Id == id);
@@ -150,7 +159,7 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
     }
 
     [HttpPatch("{id:int}/reject")]
-    [Authorize(Roles = "Admin,Finance,Staff")]
+    [Authorize(Roles = "Admin,Finance")]
     public async Task<IActionResult> Reject(int id, [FromBody] RejectReq? req)
     {
         var tx = await _db.WalletTransactions.FirstOrDefaultAsync(x => x.Id == id);
@@ -176,9 +185,9 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         return Ok(tx);
     }
 
-    // ✅ NEW: Edit transaction (all roles can correct mistakes)
+    // ✅ Finance can edit mistakes (amount/bank/ref/notes/game)
     [HttpPatch("{id:int}")]
-    [Authorize(Roles = "Admin,Finance,Staff")]
+    [Authorize(Roles = "Admin,Finance")]
     public async Task<IActionResult> Edit(int id, [FromBody] EditTxRequest req)
     {
         var tx = await _db.WalletTransactions.FirstOrDefaultAsync(x => x.Id == id);
@@ -198,9 +207,6 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         tx.ReferenceNo = (req.ReferenceNo ?? "").Trim();
         tx.Notes = (req.Notes ?? "").Trim();
         tx.GameTypeId = req.GameTypeId;
-
-        // (Optional) append audit note:
-        // tx.Notes = $"{tx.Notes}\nEDITED by {CurrentUserId()} at {DateTime.UtcNow:O}";
 
         await _db.SaveChangesAsync();
 
