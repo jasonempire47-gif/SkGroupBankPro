@@ -162,7 +162,15 @@
       <section class="card tableCard">
         <div class="tableHeader">
           <div class="tableTitle">All Transactions</div>
-          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+
+          <!-- ✅ Added Time Mode selector + Search + Refresh -->
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <select id="tzMode" style="min-width:160px;">
+              <option value="png" selected>Time: PNG (UTC+10)</option>
+              <option value="local">Time: Local</option>
+              <option value="utc">Time: UTC</option>
+            </select>
+
             <input id="txSearch" type="text" placeholder="Search player / type / status" style="min-width:260px;">
             <button class="btn ghost" id="btnRefreshDashboard" type="button">Refresh</button>
           </div>

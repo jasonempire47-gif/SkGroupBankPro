@@ -314,6 +314,26 @@ body{
   align-items:center;
 }
 
+/* ✅ Make select/input match theme (txSearch + tzMode) */
+.tableActions input,
+.tableActions select{
+  height:34px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  padding:0 12px;
+  outline:none;
+}
+
+.tableActions input::placeholder{
+  color: rgba(255,255,255,.35);
+}
+
+.tableActions select{
+  cursor:pointer;
+}
+
 .btn{
   height:34px;
   padding:0 12px;
@@ -366,6 +386,11 @@ body{
 /* keep for other simple uses */
 .right{ text-align:right; }
 
+/* ✅ Row hover (better readability) */
+.table tbody tr:hover td{
+  background: rgba(255,255,255,.04);
+}
+
 .badge{
   display:inline-flex;
   align-items:center;
@@ -381,6 +406,19 @@ body{
 .badge.ok{ border-color: rgba(46,204,113,.30); background: rgba(46,204,113,.12); }
 .badge.warn{ border-color: rgba(243,156,18,.30); background: rgba(243,156,18,.12); }
 .badge.bad{ border-color: rgba(231,76,60,.30); background: rgba(231,76,60,.12); }
+
+/* ✅ Dashboard transaction row highlights */
+.table tr.rowPending td{
+  background: rgba(242,194,0,.10);
+}
+
+.table tr.rowRejected td{
+  background: rgba(231,76,60,.12);
+}
+
+.table tr.rowApproved td{
+  background: rgba(46,204,113,.08);
+}
 
 /* --- RESPONSIVE --- */
 @media (max-width: 1150px){

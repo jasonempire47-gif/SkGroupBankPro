@@ -32,24 +32,74 @@ document.addEventListener("DOMContentLoaded", async () => {
   const txPageInfo = $("txPageInfo");
   const txCount = $("txCount");
 
+  // ✅ New: timezone mode
+  const tzMode = $("tzMode");
+
   let txPage = 1;
   const txPageSize = 25;
   let txMaxPage = 1;
 
   function money(x) {
-    const n = Number(x || 0);
-    return n.toFixed(2);
+    return Number(x || 0).toFixed(2);
   }
 
-  function fmtDate(x) {
-    if (!x) return "";
-    const d = new Date(x);
-    if (isNaN(d.getTime())) return String(x);
-    return d.toLocaleString();
+  function getTimeMode() {
+    return (tzMode?.value || "png").toLowerCase(); // png | local | utc
+  }
+
+  // ✅ Always parse SAFE UTC first
+  function parseUtc(utcString) {
+    if (!utcString) return null;
+    const d = new Date(utcString);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function fmtDateFromUtc(utcString) {
+    const d = parseUtc(utcString);
+    if (!d) return "";
+
+    const mode = getTimeMode();
+
+    if (mode === "utc") {
+      return d.toLocaleString("en-GB", {
+        timeZone: "UTC",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }) + " UTC";
+    }
+
+    if (mode === "local") {
+      // viewer local time
+      return d.toLocaleString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }) + " Local";
+    }
+
+    // default PNG
+    return d.toLocaleString("en-GB", {
+      timeZone: "Pacific/Port_Moresby",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    }) + " PNG";
   }
 
   async function loadStats() {
-    // ✅ Your controller route is /api/admin-dashboard/stats
     const d = await apiFetch("/api/admin-dashboard/stats");
 
     statTotalCustomers.textContent = d.totalCustomers ?? 0;
@@ -71,6 +121,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     statPendingRebates.textContent = d.pendingRebates ?? 0;
   }
 
+  function rowClassByStatus(statusName) {
+    const s = String(statusName || "").toLowerCase();
+    if (s === "pending") return "rowPending";
+    if (s === "rejected") return "rowRejected";
+    if (s === "approved") return "rowApproved";
+    return "";
+  }
+
   async function loadAllTransactions() {
     const q = (txSearch?.value || "").trim();
 
@@ -79,7 +137,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     qs.set("pageSize", String(txPageSize));
     if (q) qs.set("q", q);
 
-    // ✅ Your API works: /api/transactions/all?page=1&pageSize=25
     const res = await apiFetch(`/api/transactions/all?${qs.toString()}`);
 
     const items = Array.isArray(res?.items) ? res.items : [];
@@ -92,31 +149,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (txPrev) txPrev.disabled = txPage <= 1;
     if (txNext) txNext.disabled = txPage >= txMaxPage;
 
-    // ✅ Match your returned fields: customerName / typeName / statusName / amount / createdAt
     tbody.innerHTML = items.map(r => {
       const player = r.customerName ?? "N/A";
       const type = r.typeName ?? "";
       const status = r.statusName ?? "";
       const amount = r.amount ?? 0;
-      const created = r.createdAt ?? "";
+
+      // ✅ Use timezone-safe field
+      const createdUtc = r.createdAtUtc ?? "";
+
+      const cls = rowClassByStatus(status);
 
       return `
-        <tr>
+        <tr class="${cls}">
           <td>${escapeHtml(String(player))}</td>
           <td>${escapeHtml(String(type))}</td>
           <td class="right">${escapeHtml(money(amount))}</td>
           <td class="center">${escapeHtml(String(status))}</td>
-          <td class="right">${escapeHtml(fmtDate(created))}</td>
+          <td class="right">${escapeHtml(fmtDateFromUtc(createdUtc))}</td>
         </tr>
       `;
     }).join("");
   }
 
+  async function refreshAll() {
+    await loadStats();
+    await loadAllTransactions();
+  }
+
   // ---- Events ----
   btnRefresh?.addEventListener("click", async () => {
     txPage = 1;
-    await loadStats();
-    await loadAllTransactions();
+    await refreshAll();
   });
 
   txPrev?.addEventListener("click", async () => {
@@ -142,7 +206,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 350);
   });
 
+  // ✅ re-render dates immediately if user changes mode
+  tzMode?.addEventListener("change", async () => {
+    await loadAllTransactions();
+  });
+
   // ---- Initial load ----
-  await loadStats();
-  await loadAllTransactions();
+  await refreshAll();
+
+  // ✅ Auto refresh every 30 seconds
+  setInterval(() => {
+    refreshAll().catch(() => {});
+  }, 30000);
+
+  // ✅ If SignalR helpers exist, refresh on push updates too
+  try {
+    if (typeof startRealtime === "function") {
+      await startRealtime();
+    }
+    if (typeof onDashboardUpdated === "function") {
+      onDashboardUpdated(() => refreshAll());
+    }
+  } catch {
+    // ignore realtime failures
+  }
 });
