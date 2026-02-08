@@ -158,10 +158,12 @@
         </div>
       </section>
 
+      <!-- ✅ All Transactions -->
       <section class="card tableCard">
         <div class="tableHeader">
-          <div class="tableTitle">Recent Transactions</div>
-          <div class="tableActions">
+          <div class="tableTitle">All Transactions</div>
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+            <input id="txSearch" type="text" placeholder="Search player / type / status" style="min-width:260px;">
             <button class="btn ghost" id="btnRefreshDashboard" type="button">Refresh</button>
           </div>
         </div>
@@ -179,6 +181,17 @@
             </thead>
             <tbody id="recentTbody"></tbody>
           </table>
+        </div>
+
+        <!-- ✅ Pager -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 2px 0;">
+          <div class="mutedSmall" id="txCount">0 record(s)</div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn ghost" id="txPrev" type="button">Prev</button>
+            <span class="mutedSmall" id="txPageInfo">Page 1</span>
+            <button class="btn ghost" id="txNext" type="button">Next</button>
+          </div>
         </div>
       </section>
     </main>

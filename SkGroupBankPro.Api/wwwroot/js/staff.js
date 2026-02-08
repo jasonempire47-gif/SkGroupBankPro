@@ -11,6 +11,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const txFilter = document.getElementById("txFilter");
   const btnRefreshTx = document.getElementById("btnRefreshTx");
 
+  // ✅ NEW: search + paging elements (must exist in staff.html)
+  const txSearch = document.getElementById("txSearch");
+  const txPrev = document.getElementById("txPrev");
+  const txNext = document.getElementById("txNext");
+  const txPageInfo = document.getElementById("txPageInfo");
+  const txCount = document.getElementById("txCount");
+
   const btnCreateCustomer = document.getElementById("btnCreateCustomer");
   const cName = document.getElementById("cName");
   const cPhone = document.getElementById("cPhone");
@@ -48,6 +55,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   // State
   let allGameTypes = [];         // from /api/game-types
   let editRow = null;            // currently editing transaction row
+
+  // ✅ Paging state
+  let txPage = 1;
+  const txPageSize = 25;
+  let txMaxPage = 1;
 
   function setMsg(el, text, ok = true) {
     if (!el) return;
@@ -101,20 +113,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     editRow = row;
     if (!editModal) return;
 
-    // reset messages
     setMsg(editModalErr, "", true);
 
     const title = `Editing #${row.id} • ${row.customerName || ""} • ${row.typeName || ""}`;
     if (editModalSub) editModalSub.textContent = title;
 
-    // preload values
     editAmount.value = Number(row.amount || 0);
     editBankType.value = (row.bankType || "").trim() || "";
-
     editRef.value = (row.referenceNo || "");
     editNotes.value = (row.notes || "");
 
-    // game type dropdown: "Keep current" + list
     renderEditGameTypeOptions(row.gameTypeId);
 
     editModal.style.display = "flex";
@@ -136,10 +144,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
     editGameType.innerHTML = options.join("");
 
-    // default to "keep current" (blank)
     editGameType.value = "";
-    // If you want default to current, uncomment:
-    // editGameType.value = currentGameTypeId ? String(currentGameTypeId) : "";
   }
 
   async function saveEditModal() {
@@ -159,7 +164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const gameTypeChoice = (editGameType.value || "").trim();
     const gameTypeId =
       gameTypeChoice === ""
-        ? (editRow.gameTypeId ?? null)    // keep current
+        ? (editRow.gameTypeId ?? null)
         : Number(gameTypeChoice);
 
     if (gameTypeChoice !== "" && (!gameTypeId || gameTypeId <= 0))
@@ -179,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       closeEditModal();
-      await loadRecentTransactions();
+      await loadAllTransactions(); // ✅ reload paged list
     } catch (e) {
       setMsg(editModalErr, String(e?.message || e), false);
     } finally {
@@ -192,12 +197,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   btnEditCancel?.addEventListener("click", closeEditModal);
   btnEditSave?.addEventListener("click", saveEditModal);
 
-  // click outside card closes
   editModal?.addEventListener("click", (e) => {
     if (e.target === editModal) closeEditModal();
   });
 
-  // ESC closes
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && editModal?.style.display === "flex") closeEditModal();
   });
@@ -221,12 +224,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const games = await apiFetch("/api/game-types");
     allGameTypes = Array.isArray(games) ? games : [];
 
-    // main form dropdown
     gameTypeSelect.innerHTML =
       `<option value="">Game Type (optional)</option>` +
       allGameTypes.map(g => `<option value="${g.id}">${escapeHtml(g.name || "")}</option>`).join("");
 
-    // modal dropdown
     renderEditGameTypeOptions(null);
   }
 
@@ -250,7 +251,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       cPhone.value = "";
 
       await loadCustomers(String(created?.id || ""));
-      await loadRecentTransactions();
+      txPage = 1;
+      await loadAllTransactions();
     } catch (e) {
       setMsg(createCustomerMsg, String(e?.message || e), false);
     } finally {
@@ -305,7 +307,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       referenceNo.value = "";
       setPngNowToInput();
 
-      await loadRecentTransactions();
+      txPage = 1;
+      await loadAllTransactions();
     } catch (e) {
       setMsg(txMsg, String(e?.message || e), false);
     } finally {
@@ -325,16 +328,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  async function loadRecentTransactions() {
-    const rows = await apiFetch("/api/transactions?take=80");
-    const list = Array.isArray(rows) ? rows : [];
-
+  // ✅ NEW: paged ALL transactions
+  async function loadAllTransactions() {
     const filter = (txFilter?.value || "all").toLowerCase();
-    const filtered = filter === "pending"
-      ? list.filter(x => String(x.statusName || "").toLowerCase() === "pending")
-      : list;
+    const q = (txSearch?.value || "").trim();
 
-    txTbody.innerHTML = filtered.map(r => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(txPage));
+    qs.set("pageSize", String(txPageSize));
+    if (q) qs.set("q", q);
+    if (filter === "pending") qs.set("status", "pending");
+
+    const res = await apiFetch(`/api/transactions/all?${qs.toString()}`);
+
+    const items = Array.isArray(res?.items) ? res.items : [];
+    const total = Number(res?.total || 0);
+    txMaxPage = Math.max(1, Math.ceil(total / txPageSize));
+
+    if (txCount) txCount.textContent = `${total} record(s)`;
+    if (txPageInfo) txPageInfo.textContent = `Page ${txPage} / ${txMaxPage}`;
+    if (txPrev) txPrev.disabled = txPage <= 1;
+    if (txNext) txNext.disabled = txPage >= txMaxPage;
+
+    txTbody.innerHTML = items.map(r => {
       const id = r.id;
       const status = String(r.statusName || "");
       const isPending = status.toLowerCase() === "pending";
@@ -371,6 +387,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).join("");
   }
 
+  // Row actions
   txTbody?.addEventListener("click", async (e) => {
     const btn = e.target?.closest("button");
     if (!btn) return;
@@ -390,11 +407,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (act === "approve") {
         if (!canApproveReject) return;
         await approveTx(id);
-        await loadRecentTransactions();
+        await loadAllTransactions();
       } else if (act === "reject") {
         if (!canApproveReject) return;
         await rejectTx(id);
-        await loadRecentTransactions();
+        await loadAllTransactions();
       } else if (act === "edit") {
         if (!canEdit) return;
         if (!row) return alert("Row data missing.");
@@ -415,14 +432,38 @@ document.addEventListener("DOMContentLoaded", async () => {
   btnCreateCustomer?.addEventListener("click", createCustomer);
   btnSubmitTx?.addEventListener("click", submitTx);
 
-  btnRefreshTx?.addEventListener("click", loadRecentTransactions);
-  txFilter?.addEventListener("change", loadRecentTransactions);
+  // ✅ Refresh / filter / search / paging
+  btnRefreshTx?.addEventListener("click", async () => { txPage = 1; await loadAllTransactions(); });
+  txFilter?.addEventListener("change", async () => { txPage = 1; await loadAllTransactions(); });
+
+  let t = null;
+  txSearch?.addEventListener("input", () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(async () => {
+      txPage = 1;
+      await loadAllTransactions();
+    }, 350);
+  });
+
+  txPrev?.addEventListener("click", async () => {
+    if (txPage > 1) {
+      txPage--;
+      await loadAllTransactions();
+    }
+  });
+
+  txNext?.addEventListener("click", async () => {
+    if (txPage < txMaxPage) {
+      txPage++;
+      await loadAllTransactions();
+    }
+  });
 
   await loadCustomers();
   await loadGameTypes();
-  await loadRecentTransactions();
+  await loadAllTransactions();
 
   // realtime
   await startRealtime();
-  onDashboardUpdated(() => loadRecentTransactions());
+  onDashboardUpdated(() => loadAllTransactions());
 });

@@ -71,8 +71,6 @@
         </div>
       </header>
 
-      
-
       <!-- CREATE CUSTOMER -->
       <section class="card" style="padding:16px; margin-bottom:16px;">
         <h2 style="margin:0 0 10px;">Create Customer</h2>
@@ -131,21 +129,24 @@
         <div id="txMsg" class="mutedSmall" style="margin-top:10px;"></div>
       </section>
 
-      <!-- RECENT TRANSACTIONS -->
+      <!-- ✅ ALL TRANSACTIONS -->
       <section class="card" style="padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <div>
-            <h2 style="margin:0 0 6px;">Recent Transactions</h2>
+            <h2 style="margin:0 0 6px;">All Transactions</h2>
             <div class="mutedSmall">
-              Updates instantly (SignalR). Use <b>Edit</b> to correct mistakes.
+              Paged list. Use Search + Pending filter.
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; align-items:center;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input id="txSearch" type="text" placeholder="Search customer / type / status / bank / ref" style="min-width:280px;" />
+
             <select id="txFilter">
               <option value="all">All</option>
               <option value="pending">Pending</option>
             </select>
+
             <button class="btn ghost" id="btnRefreshTx" type="button">Refresh</button>
           </div>
         </div>
@@ -168,11 +169,21 @@
             <tbody id="txTbody"></tbody>
           </table>
         </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px;">
+          <div class="mutedSmall" id="txCount">0 record(s)</div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn ghost" id="txPrev" type="button">Prev</button>
+            <span class="mutedSmall" id="txPageInfo">Page 1</span>
+            <button class="btn ghost" id="txNext" type="button">Next</button>
+          </div>
+        </div>
       </section>
     </main>
   </div>
 
-  <!-- ✅ EDIT MODAL (NEW) -->
+  <!-- ✅ EDIT MODAL (UNCHANGED) -->
   <div id="editModal" class="modalOverlay" style="display:none;">
     <div class="card" style="width:min(720px, 92vw); padding:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
@@ -236,7 +247,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
   <script src="js/realtime.js"></script>
 
+  <!-- ✅ keep your existing staff.js -->
   <script src="js/staff.js"></script>
+
+  <!-- ✅ add this new file AFTER staff.js so it controls the table -->
+  <script src="js/staff-all-transactions.js"></script>
 
   <script>
     (function () {
@@ -260,7 +275,6 @@
     })();
   </script>
 
-  <!-- Minimal CSS for modal overlay (keeps your theme) -->
   <style>
     .modalOverlay{
       position:fixed; inset:0;
