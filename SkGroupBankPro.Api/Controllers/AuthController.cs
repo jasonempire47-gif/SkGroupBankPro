@@ -33,11 +33,13 @@ public sealed class AuthController(AppDbContext db, JwtService jwt, PasswordHash
     // =========================
     // OPTION B: Separate logins
     // =========================
-
+    
+    [AllowAnonymous]
     [HttpPost("login-staff")]
     public Task<IActionResult> LoginStaff([FromBody] LoginRequest req)
         => LoginWithRoleGate(req, allowedRoles: new[] { "Staff" });
 
+    [AllowAnonymous]
     [HttpPost("login-finance")]
     public Task<IActionResult> LoginFinance([FromBody] LoginRequest req)
         => LoginWithRoleGate(req, allowedRoles: new[] { "Finance", "Admin" });
@@ -126,7 +128,8 @@ public sealed class AuthController(AppDbContext db, JwtService jwt, PasswordHash
         public string Username { get; set; } = "";
         public string ResetKey { get; set; } = "";
     }
-
+    
+    [AllowAnonymous]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordReq req)
     {

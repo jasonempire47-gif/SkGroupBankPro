@@ -24,7 +24,8 @@ builder.Services.AddEndpointsApiExplorer();
 /* ---------------- SWAGGER + JWT ---------------- */
 builder.Services.AddSwaggerGen(c =>
 {
-    c.CustomSchemaIds(t => t.FullName);
+    // ✅ FIX: nested types use "+" in FullName; Swagger refs may fail unless normalized
+    c.CustomSchemaIds(t => (t.FullName ?? t.Name).Replace("+", "."));
 
     c.SwaggerDoc("v1", new OpenApiInfo
     {
@@ -110,7 +111,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-/* ---------------- CORS (NETLIFY) ---------------- */
+/* ---------------- CORS (FRONTEND) ---------------- */
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -149,17 +150,19 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// ✅ CORS MUST be between UseRouting and Auth
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-// ✅ keep only if you host UI inside API
-app.MapFallbackToFile("index.html");
+// ✅ IMPORTANT:
+// Only keep fallback IF you are hosting your UI inside the API wwwroot.
+// If your UI is on https://skgroup.xyz (separate hosting), remove this.
+// app.MapFallbackToFile("index.html");
 
 /* ---------------- SEED + FIX ADMIN PASSWORD ---------------- */
 using (var scope = app.Services.CreateScope())
