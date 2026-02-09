@@ -6,6 +6,7 @@ namespace SkGroupBankpro.Api.Models
         Withdrawal = 1,
         Rebate = 2,
         Bonus = 3,
+        Adjustment = 4
     }
 
     public enum TxDirection

@@ -8,27 +8,36 @@ using SkGroupBankpro.Api.Hubs;
 using SkGroupBankpro.Api.Services;
 using SkGroupBankpro.Api.Utilities;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Controllers + DateOnly/TimeOnly JSON support
+/* ===============================
+   CONTROLLERS + JSON
+   =============================== */
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
+        // ✅ IMPORTANT: enums as strings (Approved, Credit, Debit)
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
+        // DateOnly / TimeOnly support
         o.JsonSerializerOptions.Converters.Add(new DateOnlyJsonConverter());
         o.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
 
-/* ---------------- SWAGGER + JWT ---------------- */
+/* ===============================
+   SWAGGER + JWT
+   =============================== */
 builder.Services.AddSwaggerGen(c =>
 {
     c.CustomSchemaIds(t => t.FullName);
 
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "SkGroup BankPro API",
+        Title = "SK GROUP BANKPRO API",
         Version = "v1"
     });
 
@@ -55,22 +64,29 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-/* ---------------- DATABASE ---------------- */
+/* ===============================
+   DATABASE
+   =============================== */
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+{
+    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
-/* ---------------- SERVICES ---------------- */
+/* ===============================
+   SERVICES
+   =============================== */
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordHasher>();
 
-// ✅ SignalR realtime
+// SignalR
 builder.Services.AddSignalR();
 
-// ✅ Auto rebates background service
+// Auto rebates background worker
 builder.Services.AddHostedService<AutoRebateService>();
 
-/* ---------------- JWT ---------------- */
+/* ===============================
+   JWT AUTH
+   =============================== */
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 
@@ -85,22 +101,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
 
             ValidIssuer = jwtIssuer,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtKey)
+            ),
 
             ClockSkew = TimeSpan.FromMinutes(2),
             NameClaimType = "sub",
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
 
-        // ✅ Allow SignalR token via query string: ?access_token=...
+        // ✅ SignalR token support (?access_token=)
         opt.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
-                var path = context.HttpContext.Request.Path;
                 var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
 
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/dashboard"))
+                if (!string.IsNullOrEmpty(accessToken)
+                    && path.StartsWithSegments("/hubs/dashboard"))
                 {
                     context.Token = accessToken!;
                 }
@@ -110,78 +129,73 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-/* ---------------- CORS (NETLIFY) ----------------
-   ✅ Bearer token auth (no cookies) => NO AllowCredentials needed
-*/
-const string CorsPolicyName = "AllowFrontend";
-
+/* ===============================
+   CORS (NETLIFY)
+   =============================== */
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(CorsPolicyName, policy =>
+    options.AddPolicy("AllowFrontend", policy =>
         policy
             .WithOrigins(
                 "https://skgroup.xyz",
                 "https://www.skgroup.xyz",
                 "https://skgroup-bankpro.netlify.app"
             )
-            .AllowAnyHeader()
             .AllowAnyMethod()
-            // ✅ Required for SignalR/WebSockets on some browsers/proxies
-            .AllowCredentials()
+            .AllowAnyHeader()
     );
 });
 
-/* ---------------- RENDER PROXY FIX ----------------
-   ✅ This prevents HTTPS redirect / scheme confusion behind Render
-*/
+/* ===============================
+   RENDER PROXY FIX
+   =============================== */
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
 var app = builder.Build();
 
-/* ---------------- PIPELINE ---------------- */
+/* ===============================
+   PIPELINE (ORDER IS CRITICAL)
+   =============================== */
 
-// ✅ MUST be BEFORE UseHttpsRedirection()
+// MUST be first
 app.UseForwardedHeaders();
 
-// Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SkGroup BankPro API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SK GROUP BANKPRO API v1");
 });
 
 app.UseHttpsRedirection();
-
-// Keep static files ONLY if you actually host any files from API.
-// If your UI is on Netlify, you can keep this, but it’s optional.
 app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ CRITICAL: CORS must be between Routing and Auth
-app.UseCors(CorsPolicyName);
+// CORS MUST be here
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// ✅ SignalR endpoint + explicit CORS to avoid negotiation/CORS edge cases
-app.MapHub<DashboardHub>("/hubs/dashboard").RequireCors(CorsPolicyName);
+// SignalR
+app.MapHub<DashboardHub>("/hubs/dashboard");
 
-/*
-  ✅ IMPORTANT (PROD):
-  You are hosting the UI on Netlify, so DO NOT fallback to index.html on the API.
-  This can cause unexpected behavior (API 404s turning into HTML).
-*/
-// app.MapFallbackToFile("index.html");
+// If serving UI from API (safe to keep)
+app.MapFallbackToFile("index.html");
 
-/* ---------------- SEED + CLEANUP ---------------- */
+/* ===============================
+   DATABASE INIT + SEED
+   =============================== */
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -189,21 +203,20 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
 
-    // ✅ Cleanup bad DailyWinLoss records
+    // Cleanup invalid DailyWinLoss
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
     var badDaily = await db.DailyWinLosses
         .Where(x => x.DateUtc < cutoff)
         .ToListAsync();
 
-    if (badDaily.Count > 0)
+    if (badDaily.Any())
     {
         db.DailyWinLosses.RemoveRange(badDaily);
         await db.SaveChangesAsync();
     }
 
-    // ✅ Seed Admin
-    if (!await db.Users.AnyAsync(u => u.Username == "admin"))
+    // Seed Admin
+    if (!await db.Users.AnyAsync(x => x.Username == "admin"))
     {
         db.Users.Add(new SkGroupBankpro.Api.Models.User
         {
@@ -216,7 +229,7 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 
-    // ✅ Seed Game Types
+    // Seed Game Types
     if (!await db.GameTypes.AnyAsync())
     {
         db.GameTypes.AddRange(
@@ -232,7 +245,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-/* ---------------- RENDER PORT BINDING ---------------- */
+/* ===============================
+   RENDER PORT BINDING
+   =============================== */
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
@@ -241,7 +256,9 @@ if (!string.IsNullOrWhiteSpace(port))
 
 app.Run();
 
-/* ---------------- HELPER EXTENSION FOR SWAGGER SECURITY REQUIREMENT ---------------- */
+/* ===============================
+   SWAGGER HELPER
+   =============================== */
 static class OpenApiRefExt
 {
     public static OpenApiSecurityScheme AsSecurityScheme(this OpenApiReference reference)

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SK GROUP BANKPRO - Reconciliation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app" id="appRoot">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" id="btnSidebarToggle" type="button" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">MAIN</div>
+      <a class="navItem" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
+      <a class="navItem" href="rebates.html"><span class="navIcon">💸</span><span>Rebates</span></a>
+      <a class="navItem" href="finance.html"><span class="navIcon">🏦</span><span>Finance</span></a>
+
+      <div class="navSectionLabel">GAMES</div>
+      <a class="navItem" href="games.html"><span class="navIcon">🎮</span><span>Games</span></a>
+      <a class="navItem active" href="reconciliation.html"><span class="navIcon">🧾</span><span>Reconciliation</span></a>
+
+      <div class="sidebarBottom">
+        <a class="navItem danger" href="index.html" id="logoutBtn">
+          <span class="navIcon">⏻</span>
+          <span>Logout</span>
+        </a>
+        <div class="sidebarFooter">
+          <div class="mutedSmall">SpinKing Admin</div>
+          <div class="mutedSmall">Preview</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <button class="iconBtn" title="Menu">≡</button>
+          <div class="crumbText">
+            <span class="muted">Admin</span>
+            <span class="sep">/</span>
+            <span class="gold">Reconciliation</span>
+          </div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="userChip">
+            <div class="avatar" id="userAvatar">A</div>
+            <div class="userMeta">
+              <div class="userName" id="userName">Admin</div>
+              <div class="userRole" id="userRole">Administrator</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- =========================
+           SUMMARY (MATCH FINANCE STYLE)
+           ========================= -->
+      <section class="card tableCard" style="margin-top:14px;">
+        <div class="tableHeader">
+          <div>
+            <div class="tableTitle">Finance ↔ Games Reconciliation</div>
+            <div class="mutedSmall">Approved-only totals. Bank uses BankType. Games uses GameTypeId. Direction controls sign (Credit + / Debit -).</div>
+          </div>
+
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+            <select id="selCustomer">
+              <option value="">Select customer...</option>
+            </select>
+            <button class="btn ghost" id="btnRefresh" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:260px;">Side</th>
+                <th class="right" style="width:180px;">Opening</th>
+                <th class="right" style="width:200px;">Approved Net</th>
+                <th class="right" style="width:200px;">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="sumTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px 14px;">
+          <div class="mutedSmall" id="sumUpdated">—</div>
+          <div class="mutedSmall" id="sumDiff">—</div>
+        </div>
+
+        <div class="msg" id="msg" style="margin:0 14px 14px;"></div>
+      </section>
+
+      <!-- =========================
+           BANK BREAKDOWN
+           ========================= -->
+      <section class="card tableCard" style="margin-top:14px;">
+        <div class="tableHeader">
+          <div>
+            <div class="tableTitle">Bank Breakdown</div>
+            <div class="mutedSmall">Opening comes from Finance page browser-saved opening (if set). Net is approved transactions grouped by BankType.</div>
+          </div>
+
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+            <input id="bankSearch" type="text" placeholder="Search bank..." style="min-width:240px;">
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:260px;">Bank</th>
+                <th class="right" style="width:180px;">Opening</th>
+                <th class="right" style="width:200px;">Approved Net</th>
+                <th class="right" style="width:200px;">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="bankTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px 14px;">
+          <div class="mutedSmall" id="bankCount">0 bank(s)</div>
+          <div class="mutedSmall" id="bankTotal">—</div>
+        </div>
+      </section>
+
+      <!-- =========================
+           GAME BREAKDOWN
+           ========================= -->
+      <section class="card tableCard" style="margin-top:14px;">
+        <div class="tableHeader">
+          <div>
+            <div class="tableTitle">Games Breakdown</div>
+            <div class="mutedSmall">Opening comes from Games page browser-saved opening (if set). Net is approved transactions grouped by GameType.</div>
+          </div>
+
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+            <input id="gameSearch" type="text" placeholder="Search game..." style="min-width:240px;">
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:260px;">Game</th>
+                <th class="right" style="width:180px;">Opening</th>
+                <th class="right" style="width:200px;">Approved Net</th>
+                <th class="right" style="width:200px;">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="gameTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px 14px;">
+          <div class="mutedSmall" id="gameCount">0 game(s)</div>
+          <div class="mutedSmall" id="gameTotal">—</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/reconciliation.js"></script>
+
+  <script>
+    (function () {
+      const username = localStorage.getItem("username") || "Admin";
+      const role = localStorage.getItem("role") || "Administrator";
+      const avatar = (username || "A").trim().slice(0, 1).toUpperCase();
+
+      document.getElementById("userName").textContent = username;
+      document.getElementById("userRole").textContent = role;
+      document.getElementById("userAvatar").textContent = avatar;
+
+      document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        logout();
+      });
+    })();
+  </script>
+</body>
+</html>

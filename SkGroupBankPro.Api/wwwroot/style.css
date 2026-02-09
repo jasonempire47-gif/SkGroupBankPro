@@ -495,3 +495,50 @@ body{
 .app.sidebar-collapsed .sidebar .navIcon {
   margin-right: 0;
 }
+
+/* =========================
+   CENTERED MODAL (FIXED)
+   ========================= */
+.modalBackdrop{
+  position: fixed;
+  inset: 0;
+  display: none;              /* JS toggles to flex */
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.55);
+  z-index: 9999;
+  padding: 16px;
+}
+
+.modalCard{
+  width: min(720px, 96vw);
+  border-radius: 16px;
+  background: rgba(20,20,20,.92);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  padding: 14px;
+}
+
+.modalTitle{
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modalBody{
+  margin-top: 10px;
+}
+
+.modalActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top: 14px;
+}
+
+/* optional layout helpers inside modal */
+.formRow{ display:flex; align-items:center; gap:10px; }
+.label{ width:140px; color:#cfcfcf; font-weight:600; }
+.input{ flex:1; }
+.msg{ margin-top:10px; font-size:13px; }
+.msg.ok{ color:#3ddc84; }
+.msg.bad{ color:#ff6b6b; }

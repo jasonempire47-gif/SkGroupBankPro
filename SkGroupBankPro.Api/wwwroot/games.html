@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SK GROUP BANKPRO - Games</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app" id="appRoot">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" id="btnSidebarToggle" type="button" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">MAIN</div>
+      <a class="navItem" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
+      <a class="navItem" href="rebates.html"><span class="navIcon">💸</span><span>Rebates</span></a>
+      <a class="navItem" href="finance.html"><span class="navIcon">🏦</span><span>Finance</span></a>
+
+      <div class="navSectionLabel">GAMES</div>
+      <a class="navItem active" href="games.html"><span class="navIcon">🎮</span><span>Games</span></a>
+
+      <div class="sidebarBottom">
+        <a class="navItem danger" href="index.html" id="logoutBtn">
+          <span class="navIcon">⏻</span>
+          <span>Logout</span>
+        </a>
+        <div class="sidebarFooter">
+          <div class="mutedSmall">SpinKing Admin</div>
+          <div class="mutedSmall">Preview</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <button class="iconBtn" title="Menu">≡</button>
+          <div class="crumbText">
+            <span class="muted">Admin</span>
+            <span class="sep">/</span>
+            <span class="gold">Games</span>
+          </div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="userChip">
+            <div class="avatar" id="userAvatar">A</div>
+            <div class="userMeta">
+              <div class="userName" id="userName">Admin</div>
+              <div class="userRole" id="userRole">Administrator</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- =========================
+           GAMES SUMMARY
+           ========================= -->
+      <section class="card tableCard" style="margin-top:14px;">
+        <div class="tableHeader">
+          <div>
+            <div class="tableTitle">Games Credits Summary</div>
+            <div class="mutedSmall">
+              Record count + Approved balance per game (per customer).
+            </div>
+          </div>
+
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center;">
+            <select id="selCustomer" style="min-width:220px;"></select>
+            <input id="gameSearch" type="text" placeholder="Search game..." style="min-width:240px;">
+            <button class="btn ghost" id="btnAddGame" type="button">Add Game</button>
+            <button class="btn ghost" id="btnRefreshGames" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:260px;">Game</th>
+                <th class="right" style="width:170px;">Records</th>
+                <th class="right" style="width:220px;">Approved Balance</th>
+                <th class="center" style="width:200px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="gameTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px 14px;">
+          <div class="mutedSmall" id="gameCount">0 game(s)</div>
+          <div class="mutedSmall" id="gameUpdated">—</div>
+        </div>
+
+        <div id="gameMsg" class="msg"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ✅ CENTER MODAL (same as Finance) -->
+  <div id="modalBackdrop" class="modalBackdrop" style="display:none;">
+    <div class="modalCard">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div class="modalTitle" id="modalTitle">Modal</div>
+        <button class="iconBtn" id="btnModalCancel" type="button">✕</button>
+      </div>
+
+      <div id="modalBody" class="modalBody"></div>
+
+      <div class="modalActions">
+        <button class="btn ghost" id="btnModalCancel2" type="button">Cancel</button>
+        <button class="btn" id="btnModalSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/games.js"></script>
+
+  <script>
+    (function () {
+      const username = localStorage.getItem("username") || "Admin";
+      const role = localStorage.getItem("role") || "Administrator";
+      const avatar = (username || "A").trim().slice(0, 1).toUpperCase();
+
+      document.getElementById("userName").textContent = username;
+      document.getElementById("userRole").textContent = role;
+      document.getElementById("userAvatar").textContent = avatar;
+
+      document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        logout();
+      });
+    })();
+  </script>
+</body>
+</html>

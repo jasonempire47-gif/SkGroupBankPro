@@ -22,6 +22,10 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         return int.TryParse(sub, out var id) ? id : 0;
     }
 
+    // =========================
+    // FINANCE LIST (keep existing)
+    // GET /api/transactions?take=50
+    // =========================
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] int take = 50)
     {
@@ -48,6 +52,8 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
                 statusName = t.Status.ToString(),
 
                 direction = (int)t.Direction,
+                directionName = t.Direction.ToString(),
+
                 bankType = t.BankType,
                 referenceNo = t.ReferenceNo,
 
@@ -61,6 +67,61 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
 
         return Ok(data);
     }
+
+    // =========================
+    // ✅ NEW: FILTERED LIST FOR GAMES + RECONCILIATION
+    // GET /api/transactions/by-customer?customerId=1&gameTypeId=2&status=Approved
+    // GET /api/transactions/by-customer?customerId=1   (returns all customer tx)
+    // =========================
+    [HttpGet("by-customer")]
+    public async Task<IActionResult> ByCustomer(
+        [FromQuery] int customerId,
+        [FromQuery] int? gameTypeId,
+        [FromQuery] TxStatus? status,
+        [FromQuery] int take = 500
+    )
+    {
+        if (customerId <= 0) return BadRequest("customerId is required.");
+        take = Math.Clamp(take, 1, 2000);
+
+        var q =
+            from t in _db.WalletTransactions.AsNoTracking()
+            where t.CustomerId == customerId
+            select t;
+
+        if (gameTypeId.HasValue)
+            q = q.Where(x => x.GameTypeId == gameTypeId.Value);
+
+        if (status.HasValue)
+            q = q.Where(x => x.Status == status.Value);
+
+        // Return raw model fields needed by JS (amount/status/direction/bankType/gameTypeId/etc)
+        var rows = await q
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .Take(take)
+            .Select(x => new
+            {
+                id = x.Id,
+                customerId = x.CustomerId,
+                gameTypeId = x.GameTypeId,
+                amount = x.Amount,
+                type = x.Type.ToString(),
+                status = x.Status.ToString(),
+                direction = x.Direction.ToString(),
+                bankType = x.BankType,
+                referenceNo = x.ReferenceNo,
+                notes = x.Notes,
+                createdAtUtc = x.CreatedAtUtc
+            })
+            .ToListAsync();
+
+        return Ok(rows);
+    }
+
+    // =========================
+    // CREATE ENDPOINTS (keep yours)
+    // =========================
 
     // ✅ Staff can CREATE deposit, but it will be Pending (for Finance approval)
     [HttpPost("deposit")]
@@ -77,6 +138,65 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
     [Authorize(Roles = "Admin,Finance,Staff")]
     public Task<IActionResult> Bonus([FromBody] CreateTxRequest req) => CreateTx(req, TxType.Bonus);
 
+    // =========================
+    // ✅ NEW: ADJUSTMENT (auto-approved)
+    // POST /api/transactions/adjustment
+    // =========================
+    [HttpPost("adjustment")]
+    [Authorize(Roles = "Admin,Finance")]
+    public async Task<IActionResult> Adjustment([FromBody] AdjustmentRequest req)
+    {
+        if (req.CustomerId <= 0) return BadRequest("CustomerId is required.");
+        if (req.GameTypeId <= 0) return BadRequest("GameTypeId is required.");
+        if (req.Amount <= 0) return BadRequest("Amount must be > 0.");
+
+        var customerExists = await _db.Customers.AnyAsync(x => x.Id == req.CustomerId);
+        if (!customerExists) return NotFound("Customer not found.");
+
+        var gameOk = await _db.GameTypes.AnyAsync(x => x.Id == req.GameTypeId && x.IsEnabled);
+        if (!gameOk) return BadRequest("Invalid or disabled game type.");
+
+        var direction = req.Direction; // Credit / Debit from client
+
+        var tx = new WalletTransaction
+        {
+            CustomerId = req.CustomerId,
+            GameTypeId = req.GameTypeId,
+            Amount = decimal.Round(req.Amount, 4),
+
+            Type = TxType.Adjustment,
+            Direction = direction,
+            Status = TxStatus.Approved,
+
+            BankType = "",              // adjustments usually not tied to bank
+            ReferenceNo = "",
+            Notes = (req.Notes ?? "").Trim(),
+
+            CreatedByUserId = CurrentUserId(),
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        _db.WalletTransactions.Add(tx);
+        await _db.SaveChangesAsync();
+
+        await _hub.Clients.All.SendAsync("DashboardUpdated", new { entity = "transaction", action = "adjusted", id = tx.Id });
+
+        return Ok(new
+        {
+            id = tx.Id,
+            tx.CustomerId,
+            tx.GameTypeId,
+            tx.Amount,
+            typeName = tx.Type.ToString(),
+            statusName = tx.Status.ToString(),
+            directionName = tx.Direction.ToString(),
+            tx.CreatedAtUtc
+        });
+    }
+
+    // =========================
+    // INTERNAL CREATE
+    // =========================
     private async Task<IActionResult> CreateTx(CreateTxRequest req, TxType type)
     {
         if (req.CustomerId <= 0) return BadRequest("CustomerId is required.");
@@ -131,15 +251,16 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
             tx.CustomerId,
             tx.GameTypeId,
             tx.Amount,
-            type = (int)tx.Type,
             typeName = tx.Type.ToString(),
-            status = (int)tx.Status,
             statusName = tx.Status.ToString(),
+            directionName = tx.Direction.ToString(),
             tx.CreatedAtUtc
         });
     }
 
-    // ✅ Finance-only approval control
+    // =========================
+    // FINANCE APPROVE/REJECT/EDIT (keep yours)
+    // =========================
     [HttpPatch("{id:int}/approve")]
     [Authorize(Roles = "Admin,Finance")]
     public async Task<IActionResult> Approve(int id)
@@ -185,7 +306,6 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         return Ok(tx);
     }
 
-    // ✅ Finance can edit mistakes (amount/bank/ref/notes/game)
     [HttpPatch("{id:int}")]
     [Authorize(Roles = "Admin,Finance")]
     public async Task<IActionResult> Edit(int id, [FromBody] EditTxRequest req)
@@ -215,6 +335,9 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         return Ok(tx);
     }
 
+    // =========================
+    // DTOs
+    // =========================
     public sealed class RejectReq
     {
         public string? Reason { get; set; }
@@ -237,5 +360,14 @@ public sealed class TransactionsController(AppDbContext db, IHubContext<Dashboar
         public string? ReferenceNo { get; set; }
         public string? Notes { get; set; }
         public int? GameTypeId { get; set; }
+    }
+
+    public sealed class AdjustmentRequest
+    {
+        public int CustomerId { get; set; }
+        public int GameTypeId { get; set; }
+        public decimal Amount { get; set; }
+        public TxDirection Direction { get; set; } = TxDirection.Credit; // Credit or Debit
+        public string? Notes { get; set; }
     }
 }
