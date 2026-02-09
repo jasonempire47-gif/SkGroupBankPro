@@ -113,17 +113,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 /* ---------------- CORS (NETLIFY) ----------------
    ✅ Bearer token auth (no cookies) => NO AllowCredentials needed
 */
+const string CorsPolicyName = "AllowFrontend";
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddPolicy(CorsPolicyName, policy =>
         policy
             .WithOrigins(
                 "https://skgroup.xyz",
                 "https://www.skgroup.xyz",
                 "https://skgroup-bankpro.netlify.app"
             )
-            .AllowAnyMethod()
             .AllowAnyHeader()
+            .AllowAnyMethod()
+            // ✅ Required for SignalR/WebSockets on some browsers/proxies
+            .AllowCredentials()
     );
 });
 
@@ -133,8 +137,6 @@ builder.Services.AddCors(options =>
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-
-    // Render proxies are not in KnownNetworks by default
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -146,6 +148,7 @@ var app = builder.Build();
 // ✅ MUST be BEFORE UseHttpsRedirection()
 app.UseForwardedHeaders();
 
+// Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -153,23 +156,30 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseHttpsRedirection();
+
+// Keep static files ONLY if you actually host any files from API.
+// If your UI is on Netlify, you can keep this, but it’s optional.
 app.UseStaticFiles();
 
 app.UseRouting();
 
 // ✅ CRITICAL: CORS must be between Routing and Auth
-app.UseCors("AllowFrontend");
+app.UseCors(CorsPolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// ✅ SignalR endpoint
-app.MapHub<DashboardHub>("/hubs/dashboard");
+// ✅ SignalR endpoint + explicit CORS to avoid negotiation/CORS edge cases
+app.MapHub<DashboardHub>("/hubs/dashboard").RequireCors(CorsPolicyName);
 
-// ✅ Serve index.html for root/unknown routes (keep only if hosting UI inside API)
-app.MapFallbackToFile("index.html");
+/*
+  ✅ IMPORTANT (PROD):
+  You are hosting the UI on Netlify, so DO NOT fallback to index.html on the API.
+  This can cause unexpected behavior (API 404s turning into HTML).
+*/
+// app.MapFallbackToFile("index.html");
 
 /* ---------------- SEED + CLEANUP ---------------- */
 using (var scope = app.Services.CreateScope())
