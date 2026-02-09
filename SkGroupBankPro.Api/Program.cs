@@ -8,36 +8,27 @@ using SkGroupBankpro.Api.Hubs;
 using SkGroupBankpro.Api.Services;
 using SkGroupBankpro.Api.Utilities;
 using System.Text;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-/* ===============================
-   CONTROLLERS + JSON
-   =============================== */
+// ✅ Controllers + DateOnly/TimeOnly JSON support
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
-        // ✅ IMPORTANT: enums as strings (Approved, Credit, Debit)
-        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-
-        // DateOnly / TimeOnly support
         o.JsonSerializerOptions.Converters.Add(new DateOnlyJsonConverter());
         o.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
 
-/* ===============================
-   SWAGGER + JWT
-   =============================== */
+/* ---------------- SWAGGER + JWT ---------------- */
 builder.Services.AddSwaggerGen(c =>
 {
     c.CustomSchemaIds(t => t.FullName);
 
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "SK GROUP BANKPRO API",
+        Title = "SkGroup BankPro API",
         Version = "v1"
     });
 
@@ -64,29 +55,22 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-/* ===============================
-   DATABASE
-   =============================== */
+/* ---------------- DATABASE ---------------- */
 builder.Services.AddDbContext<AppDbContext>(opt =>
-{
-    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 
-/* ===============================
-   SERVICES
-   =============================== */
+/* ---------------- SERVICES ---------------- */
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordHasher>();
 
-// SignalR
+// ✅ SignalR realtime
 builder.Services.AddSignalR();
 
-// Auto rebates background worker
+// ✅ Auto rebates background service
 builder.Services.AddHostedService<AutoRebateService>();
 
-/* ===============================
-   JWT AUTH
-   =============================== */
+/* ---------------- JWT ---------------- */
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 
@@ -101,25 +85,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
 
             ValidIssuer = jwtIssuer,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtKey)
-            ),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
 
             ClockSkew = TimeSpan.FromMinutes(2),
             NameClaimType = "sub",
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
 
-        // ✅ SignalR token support (?access_token=)
+        // ✅ Allow SignalR token via query string: ?access_token=...
         opt.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
-                var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
+                var accessToken = context.Request.Query["access_token"];
 
-                if (!string.IsNullOrEmpty(accessToken)
-                    && path.StartsWithSegments("/hubs/dashboard"))
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/dashboard"))
                 {
                     context.Token = accessToken!;
                 }
@@ -129,9 +110,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-/* ===============================
-   CORS (NETLIFY)
-   =============================== */
+/* ---------------- CORS (NETLIFY) ---------------- */
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -146,32 +125,23 @@ builder.Services.AddCors(options =>
     );
 });
 
-/* ===============================
-   RENDER PROXY FIX
-   =============================== */
+/* ---------------- RENDER PROXY FIX ---------------- */
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto;
-
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
 var app = builder.Build();
 
-/* ===============================
-   PIPELINE (ORDER IS CRITICAL)
-   =============================== */
-
-// MUST be first
+/* ---------------- PIPELINE ---------------- */
 app.UseForwardedHeaders();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SK GROUP BANKPRO API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SkGroup BankPro API v1");
 });
 
 app.UseHttpsRedirection();
@@ -179,7 +149,6 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// CORS MUST be here
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
@@ -187,15 +156,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// SignalR
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-// If serving UI from API (safe to keep)
+// ✅ keep only if you host UI inside API
 app.MapFallbackToFile("index.html");
 
-/* ===============================
-   DATABASE INIT + SEED
-   =============================== */
+/* ---------------- SEED + FIX ADMIN PASSWORD ---------------- */
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -203,20 +169,18 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
 
-    // Cleanup invalid DailyWinLoss
+    // ✅ Cleanup bad DailyWinLoss records
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    var badDaily = await db.DailyWinLosses
-        .Where(x => x.DateUtc < cutoff)
-        .ToListAsync();
-
-    if (badDaily.Any())
+    var badDaily = await db.DailyWinLosses.Where(x => x.DateUtc < cutoff).ToListAsync();
+    if (badDaily.Count > 0)
     {
         db.DailyWinLosses.RemoveRange(badDaily);
         await db.SaveChangesAsync();
     }
 
-    // Seed Admin
-    if (!await db.Users.AnyAsync(x => x.Username == "admin"))
+    // ✅ FORCE: ensure admin exists and ALWAYS reset password to admin123
+    var admin = await db.Users.FirstOrDefaultAsync(u => u.Username == "admin");
+    if (admin == null)
     {
         db.Users.Add(new SkGroupBankpro.Api.Models.User
         {
@@ -225,11 +189,16 @@ using (var scope = app.Services.CreateScope())
             Role = "Admin",
             CreatedAtUtc = DateTime.UtcNow
         });
-
+        await db.SaveChangesAsync();
+    }
+    else
+    {
+        admin.PasswordHash = hasher.Hash("admin123");
+        admin.Role = "Admin";
         await db.SaveChangesAsync();
     }
 
-    // Seed Game Types
+    // ✅ Seed Game Types (only if empty)
     if (!await db.GameTypes.AnyAsync())
     {
         db.GameTypes.AddRange(
@@ -245,9 +214,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-/* ===============================
-   RENDER PORT BINDING
-   =============================== */
+/* ---------------- RENDER PORT BINDING ---------------- */
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
@@ -256,9 +223,7 @@ if (!string.IsNullOrWhiteSpace(port))
 
 app.Run();
 
-/* ===============================
-   SWAGGER HELPER
-   =============================== */
+/* ---------------- HELPER EXTENSION FOR SWAGGER SECURITY REQUIREMENT ---------------- */
 static class OpenApiRefExt
 {
     public static OpenApiSecurityScheme AsSecurityScheme(this OpenApiReference reference)
