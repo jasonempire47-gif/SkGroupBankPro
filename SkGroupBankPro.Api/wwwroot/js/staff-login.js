@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btn) btn.disabled = true;
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/auth/login-staff`, {
+      const res = await fetch(`${window.API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
