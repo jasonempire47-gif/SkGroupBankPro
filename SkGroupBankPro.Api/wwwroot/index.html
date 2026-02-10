@@ -135,20 +135,26 @@
     </div>
   </div>
 
-  <!-- ✅ Use shared API + auth (NO localhost hardcode) -->
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
 
   <script>
     const el = (id) => document.getElementById(id);
 
-    // show which API you're calling (helps debugging)
     el("apiHint").textContent = `API: ${window.API_BASE || "(not set)"}`;
 
-    // If already logged in, go dashboard
+    function redirectByRole(role) {
+      // adjust if your page names differ
+      if (role === "Staff") return "./staff.html";
+      if (role === "Finance") return "./finance.html";
+      if (role === "Admin") return "./dashboard.html";
+      return "./dashboard.html";
+    }
+
     (function init() {
       const token = localStorage.getItem("token");
-      if (token) window.location.href = "./dashboard.html";
+      const role = localStorage.getItem("role");
+      if (token && role) window.location.href = redirectByRole(role);
     })();
 
     el("btnLogin").addEventListener("click", login);
@@ -173,25 +179,32 @@
       btn.textContent = "Logging in...";
 
       try {
-        // ✅ This uses api.js so it calls Render/your domain API_BASE
         const data = await apiFetch("/api/auth/login", {
           method: "POST",
           body: JSON.stringify({ username: user, password: pass })
         });
 
-        if (!data?.token) {
+        const token = data?.token;
+        const u = data?.user || {};
+        const role = u?.role || "";
+        const username = u?.username || user;
+
+        if (!token) {
           error.textContent = "Login failed: no token returned.";
           return;
         }
+        if (!role) {
+          error.textContent = "Login failed: role missing (check API response).";
+          return;
+        }
 
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("username", data.username || user);
-        localStorage.setItem("role", data.role || "");
+        localStorage.setItem("token", token);
+        localStorage.setItem("username", username);
+        localStorage.setItem("role", role);
 
-        window.location.href = "./dashboard.html";
+        window.location.href = redirectByRole(role);
       } catch (err) {
         const msg = String(err?.message || err);
-        // common cases
         if (msg.includes("401")) error.textContent = "Invalid username or password.";
         else error.textContent = msg;
       } finally {

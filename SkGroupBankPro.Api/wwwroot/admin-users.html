@@ -157,7 +157,7 @@
   <script>
     (function () {
       // must be logged in
-      requireAuth();
+      requireAuth([Admin]);
 
       // show user chip
       const username = localStorage.getItem("username") || "Admin";

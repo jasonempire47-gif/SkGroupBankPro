@@ -1,52 +1,73 @@
-// frontend/js/login.js
-(function () {
-  function $(id) { return document.getElementById(id); }
+// wwwroot/js/login.js
+document.addEventListener("DOMContentLoaded", () => {
+  const el = (id) => document.getElementById(id);
 
-  function setError(msg) {
-    const el = $("error") || $("loginError");
-    if (el) el.textContent = msg || "";
+  function apiBase() {
+    const b = (window.API_BASE || "").trim();
+    return b ? b.replace(/\/+$/, "") : "";
   }
 
-  async function doLogin() {
-    const username = ($("username")?.value || "").trim();
-    const password = ($("password")?.value || "").trim();
+  function redirectByRole(role) {
+    const r = String(role || "").trim();
 
-    setError("");
+    // Adjust these if your page names differ
+    if (r === "Staff") location.href = "staff.html";
+    else if (r === "Finance") location.href = "finance.html";
+    else if (r === "Admin") location.href = "dashboard.html";
+    else location.href = "dashboard.html";
+  }
 
+  async function login() {
+    const username = (el("username")?.value || "").trim();
+    const password = (el("password")?.value || "").trim();
+    const err = el("loginError");
+    const btn = el("btnLogin");
+
+    if (err) err.textContent = "";
     if (!username || !password) {
-      setError("Please enter username and password.");
+      if (err) err.textContent = "Please enter username and password.";
       return;
     }
 
-    try {
-      // Swagger path: POST /api/auth/login
-      const res = await window.api.post("/api/auth/login", { username, password });
+    if (btn) btn.disabled = true;
 
-      // Your API returns: { token, username, role }
-      const token = res?.token;
-      if (!token) throw new Error("Login succeeded but token not returned.");
+    try {
+      const res = await fetch(`${apiBase()}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      // Expected shape:
+      // { token: "...", user: { id, username, role } }
+      const token = data?.token;
+      const user = data?.user || {};
+      const role = user?.role || "";
+      const uName = user?.username || username;
+
+      if (!token) throw new Error("Login succeeded but token is missing.");
 
       localStorage.setItem("token", token);
-      localStorage.setItem("username", res?.username || username);
-      localStorage.setItem("role", res?.role || "");
+      localStorage.setItem("username", uName);
+      localStorage.setItem("role", role);
 
-      // go dashboard
-      window.location.href = "dashboard.html";
+      redirectByRole(role);
     } catch (e) {
-      setError(e?.message || "Login failed.");
+      if (err) err.textContent = String(e?.message || e);
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
-  // expose for inline onclick OR bind button
-  window.login = doLogin;
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const btn = $("btnLogin");
-    if (btn) btn.addEventListener("click", doLogin);
-
-    // Enter key support
-    $("password")?.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") doLogin();
-    });
+  el("btnLogin")?.addEventListener("click", login);
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") login();
   });
-})();
+});
