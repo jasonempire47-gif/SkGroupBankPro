@@ -1,45 +1,35 @@
 // wwwroot/js/admin-users.js
 document.addEventListener("DOMContentLoaded", () => {
-  requireAuth();
+  // Admin only
+  requireAuth(["Admin"]);
 
   const $ = (id) => document.getElementById(id);
 
-  // Role gate: only Admin can use this page
-  const role = (localStorage.getItem("role") || "").trim();
-  if (role !== "Admin") {
-    alert("Admin only.");
-    logout();
-    location.href = "finance-login.html";
-    return;
-  }
-
-  const btnGen = $("btnGen");
   const roleSel = $("roleSel");
-  const msg = $("msg");
+  const btnGen = $("btnGen");
 
   const outRole = $("outRole");
   const outUser = $("outUser");
   const outPass = $("outPass");
+
   const btnCopyUser = $("btnCopyUser");
   const btnCopyPass = $("btnCopyPass");
+
+  const msg = $("msg");
 
   const usersTbody = $("usersTbody");
   const usersCount = $("usersCount");
   const btnClearList = $("btnClearList");
 
-  const LS_KEY = "admin_generated_users_v1";
+  const LS_KEY = "generatedUsers";
 
-  function setMsg(text, ok = true) {
+  function setMsg(text, kind = "") {
+    if (!msg) return;
     msg.textContent = text || "";
-    msg.className = "msg " + (ok ? "ok" : "bad");
-    if (!text) msg.className = "msg";
+    msg.className = "msg" + (kind ? ` ${kind}` : "");
   }
 
-  function nowText() {
-    try { return new Date().toLocaleString(); } catch { return String(new Date()); }
-  }
-
-  function loadList() {
+  function loadLocalList() {
     try {
       const raw = localStorage.getItem(LS_KEY);
       const arr = raw ? JSON.parse(raw) : [];
@@ -49,119 +39,135 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function saveList(arr) {
+  function saveLocalList(arr) {
     localStorage.setItem(LS_KEY, JSON.stringify(arr || []));
   }
 
-  function renderList() {
-    const arr = loadList();
-    usersTbody.innerHTML = arr.map((x, idx) => `
-      <tr>
-        <td>${escapeHtml(x.role || "")}</td>
-        <td><code>${escapeHtml(x.username || "")}</code></td>
-        <td><code>${escapeHtml(x.password || "")}</code></td>
-        <td class="right">${escapeHtml(x.createdAt || "")}</td>
-        <td class="center">
-          <button class="btn ghost" data-act="copy-user" data-idx="${idx}">Copy User</button>
-          <button class="btn ghost" data-act="copy-pass" data-idx="${idx}">Copy Pass</button>
-        </td>
-      </tr>
-    `).join("");
-
-    usersCount.textContent = `${arr.length} record(s)`;
+  function escapeHtml(str) {
+    if (str == null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
-  async function copyText(text) {
-    const t = String(text || "");
-    if (!t) return;
+  function fmtDate(iso) {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString();
+  }
+
+  function renderList() {
+    const list = loadLocalList();
+
+    if (usersCount) usersCount.textContent = `${list.length} record(s)`;
+    if (!usersTbody) return;
+
+    usersTbody.innerHTML = list
+      .map((x, idx) => {
+        return `
+          <tr>
+            <td>${escapeHtml(x.role || "-")}</td>
+            <td>${escapeHtml(x.username || "-")}</td>
+            <td>${escapeHtml(x.password || "-")}</td>
+            <td class="right">${escapeHtml(fmtDate(x.createdAtUtc))}</td>
+            <td class="center">
+              <button class="btn ghost" data-act="copyUser" data-idx="${idx}">Copy User</button>
+              <button class="btn ghost" data-act="copyPass" data-idx="${idx}">Copy Pass</button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    usersTbody.querySelectorAll("button[data-act]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        const act = b.getAttribute("data-act");
+        const idx = Number(b.getAttribute("data-idx"));
+        const item = loadLocalList()[idx];
+        if (!item) return;
+
+        const text = act === "copyUser" ? item.username : item.password;
+        try {
+          await navigator.clipboard.writeText(text || "");
+          setMsg("Copied.", "ok");
+          setTimeout(() => setMsg(""), 1200);
+        } catch {
+          setMsg("Copy failed (browser blocked clipboard).", "bad");
+        }
+      });
+    });
+  }
+
+  async function copy(text) {
     try {
-      await navigator.clipboard.writeText(t);
-      setMsg("Copied to clipboard.", true);
+      await navigator.clipboard.writeText(text || "");
+      setMsg("Copied.", "ok");
+      setTimeout(() => setMsg(""), 1200);
     } catch {
-      // fallback
-      const ta = document.createElement("textarea");
-      ta.value = t;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setMsg("Copied to clipboard.", true);
+      setMsg("Copy failed (browser blocked clipboard).", "bad");
     }
   }
 
-  btnCopyUser?.addEventListener("click", () => copyText(outUser.textContent));
-  btnCopyPass?.addEventListener("click", () => copyText(outPass.textContent));
+  // ✅ This must match your backend route exactly
+  // Swagger previously showed: POST /api/auth/generate-user
+  async function generateUser(role) {
+    // using apiFetch from auth.js (adds Bearer token)
+    return await apiFetch("/api/auth/generate-user", {
+      method: "POST",
+      body: JSON.stringify({ role })
+    });
+  }
 
-  usersTbody?.addEventListener("click", (e) => {
-    const btn = e.target.closest("button");
-    if (!btn) return;
-    const act = btn.getAttribute("data-act");
-    const idx = Number(btn.getAttribute("data-idx") || "-1");
-    const arr = loadList();
-    if (idx < 0 || idx >= arr.length) return;
-
-    if (act === "copy-user") copyText(arr[idx].username);
-    if (act === "copy-pass") copyText(arr[idx].password);
-  });
-
-  btnClearList?.addEventListener("click", () => {
-    if (!confirm("Clear the local generated users list?")) return;
-    saveList([]);
-    renderList();
-    setMsg("Cleared local list.", true);
-  });
-
-  btnGen?.addEventListener("click", async () => {
+  async function onGenerate() {
+    const role = (roleSel?.value || "Staff").trim();
     setMsg("");
 
-    const selectedRole = roleSel.value;
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setMsg("Login as Admin first.", false);
-      return;
-    }
-
-    btnGen.disabled = true;
+    if (btnGen) btnGen.disabled = true;
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/auth/generate-user`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ role: selectedRole })
-      });
+      const data = await generateUser(role);
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `HTTP ${res.status}`);
-      }
+      // Accept both shapes:
+      // { role, username, password }
+      // OR { user: { role, username }, password }
+      const r = data?.role || data?.user?.role || role;
+      const u = data?.username || data?.user?.username || data?.userName || "";
+      const p = data?.password || data?.pass || data?.plainPassword || "";
 
-      const data = await res.json();
+      if (!u || !p) throw new Error("Generate succeeded but username/password missing.");
 
-      outRole.textContent = data.role || "—";
-      outUser.textContent = data.username || "—";
-      outPass.textContent = data.password || "—";
+      if (outRole) outRole.textContent = r;
+      if (outUser) outUser.textContent = u;
+      if (outPass) outPass.textContent = p;
 
-      // store in local list
-      const arr = loadList();
-      arr.unshift({
-        role: data.role,
-        username: data.username,
-        password: data.password,
-        createdAt: nowText()
-      });
-      saveList(arr);
-
+      // store locally
+      const list = loadLocalList();
+      list.unshift({ role: r, username: u, password: p, createdAtUtc: new Date().toISOString() });
+      saveLocalList(list);
       renderList();
-      setMsg("User generated.", true);
+
+      setMsg("User generated successfully.", "ok");
     } catch (e) {
-      setMsg(String(e?.message || e), false);
+      setMsg(String(e?.message || e), "bad");
     } finally {
-      btnGen.disabled = false;
+      if (btnGen) btnGen.disabled = false;
     }
+  }
+
+  btnGen?.addEventListener("click", onGenerate);
+
+  btnCopyUser?.addEventListener("click", () => copy(outUser?.textContent || ""));
+  btnCopyPass?.addEventListener("click", () => copy(outPass?.textContent || ""));
+
+  btnClearList?.addEventListener("click", () => {
+    saveLocalList([]);
+    renderList();
+    setMsg("List cleared.", "ok");
+    setTimeout(() => setMsg(""), 1200);
   });
 
   // initial render
