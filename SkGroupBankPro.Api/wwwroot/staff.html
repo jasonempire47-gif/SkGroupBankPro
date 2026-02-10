@@ -91,6 +91,7 @@
 
           <select id="customerSelect" style="min-width:240px;"></select>
 
+          <!-- ✅ MAIN GAME SELECT -->
           <select id="gameTypeSelect" style="min-width:200px;">
             <option value="">Game Type (optional)</option>
           </select>
@@ -123,7 +124,7 @@
         <div id="txMsg" class="mutedSmall" style="margin-top:10px;"></div>
       </section>
 
-      <!-- ✅ ALL TRANSACTIONS -->
+      <!-- ALL TRANSACTIONS -->
       <section class="card" style="padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <div>
@@ -177,7 +178,7 @@
     </main>
   </div>
 
-  <!-- ✅ EDIT MODAL (UNCHANGED) -->
+  <!-- EDIT MODAL -->
   <div id="editModal" class="modalOverlay" style="display:none;">
     <div class="card" style="width:min(720px, 92vw); padding:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
@@ -210,15 +211,17 @@
           </select>
         </div>
 
+        <!-- ✅ EDIT MODAL GAME SELECT (fixed id + fixed 6 games) -->
         <div style="grid-column: 1 / -1;">
           <div class="mutedSmall" style="margin:0 0 6px;">Game Type (optional)</div>
-          <select id="editGameType">
+          <select id="editGameTypeSelect">
+            <option value="">Game Type (optional)</option>
             <option value="918Kaya">918Kaya</option>
-            <option value="Pussy888">Pussy888</option>
-            <option value="Live22" >Live22</option>
-            <option value="Mega888">Mega888</option>
-            <option value="MEGAH5">MEGAH5</option>
+            <option value="Mega88">Mega88</option>
+            <option value="SCR888">SCR888</option>
+            <option value="Live22">Live22</option>
             <option value="Joker123">Joker123</option>
+            <option value="MegaH5">MegaH5</option>
           </select>
         </div>
 
@@ -242,15 +245,14 @@
 
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js.login.js"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
   <script src="js/realtime.js"></script>
 
-  <!-- ✅ keep your existing staff.js -->
+  <!-- ✅ staff.js loads customers + games (with fallback) -->
   <script src="js/staff.js"></script>
 
-  <!-- ✅ add this new file AFTER staff.js so it controls the table -->
+  <!-- ✅ table logic -->
   <script src="js/staff-all-transactions.js"></script>
 
   <script>
