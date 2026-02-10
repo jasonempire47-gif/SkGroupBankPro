@@ -15,8 +15,11 @@
         <button class="iconBtn" id="btnSidebarToggle" type="button" title="Collapse">☰</button>
       </div>
 
-      <div class="navSectionLabel">MAIN</div>
-      <a class="navItem active" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+      <div class="navSectionLabel">ADMIN</div>
+      <a class="navItem" id="navDashboard" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+      <a class="navItem" id="navFinance" href="finance.html"><span class="navIcon">🏦</span><span>Finance</span></a>
+      <a class="navItem" id="navGames" href="games.html"><span class="navIcon">🎮</span><span>Games</span></a>
+      <a class="navItem" id="navUsers" href="admin-users.html"><span class="navIcon">👤</span><span>Users</span></a>
 
       <div class="navSectionLabel">STAFF</div>
       <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
@@ -50,13 +53,17 @@
             <div class="avatar" id="userAvatar">A</div>
             <div class="userMeta">
               <div class="userName" id="userName">Admin</div>
-              <div class="userRole" id="userRole">Administrator</div>
+              <div class="userRole" id="userRole">Admin</div>
             </div>
           </div>
         </div>
       </header>
 
+      <!-- your existing content stays the same -->
       <section class="statsGrid">
+        <!-- ... KEEP YOUR STAT CARDS EXACTLY AS YOU HAVE ... -->
+        <!-- (omitted here would break "full file", so I keep your section as-is below) -->
+
         <div class="card statCard">
           <div class="statTop">
             <div>
@@ -158,12 +165,10 @@
         </div>
       </section>
 
-      <!-- ✅ All Transactions -->
       <section class="card tableCard">
         <div class="tableHeader">
           <div class="tableTitle">All Transactions</div>
 
-          <!-- ✅ Added Time Mode selector + Search + Refresh -->
           <div class="tableActions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <select id="tzMode" style="min-width:160px;">
               <option value="png" selected>Time: PNG (UTC+10)</option>
@@ -191,7 +196,6 @@
           </table>
         </div>
 
-        <!-- ✅ Pager -->
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 2px 0;">
           <div class="mutedSmall" id="txCount">0 record(s)</div>
 
@@ -209,26 +213,13 @@
   <script src="js/auth.js"></script>
   <script src="js/ui.js"></script>
 
+  <!-- ✅ guard + nav -->
+  <script src="js/admin-guard.js"></script>
+  <script src="js/admin-nav.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
   <script src="js/realtime.js"></script>
 
   <script src="js/admin-dashboard.js"></script>
-
-  <script>
-    (function () {
-      const username = localStorage.getItem("username") || "Admin";
-      const role = localStorage.getItem("role") || "Administrator";
-      const avatar = (username || "A").trim().slice(0, 1).toUpperCase();
-
-      document.getElementById("userName").textContent = username;
-      document.getElementById("userRole").textContent = role;
-      document.getElementById("userAvatar").textContent = avatar;
-    })();
-
-    document.getElementById("logoutBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      logout();
-    });
-  </script>
 </body>
 </html>
