@@ -1,290 +1,135 @@
 // wwwroot/js/games.js
 document.addEventListener("DOMContentLoaded", () => {
-  try { requireAuth(); } catch {}
+  requireAuth(["Admin", "Staff"]);
 
   const $ = (id) => document.getElementById(id);
 
-  const selCustomer = $("selCustomer");
+  const gamesTbody = $("gamesTbody");
+  const gamesCount = $("gamesCount");
+
+  const custTbody = $("custGamesTbody");
+  const custCount = $("custGamesCount");
+
+  const custSearch = $("custSearch");
   const gameSearch = $("gameSearch");
-  const btnAddGame = $("btnAddGame");
   const btnRefresh = $("btnRefreshGames");
-  const tbody = $("gameTbody");
-  const gameCount = $("gameCount");
-  const gameUpdated = $("gameUpdated");
-  const gameMsg = $("gameMsg");
 
-  // modal
-  const modalBackdrop = $("modalBackdrop");
-  const modalTitle = $("modalTitle");
-  const modalBody = $("modalBody");
-  const btnModalSave = $("btnModalSave");
-  const btnModalCancel = $("btnModalCancel");
-  const btnModalCancel2 = $("btnModalCancel2");
-  let modalOnSave = null;
+  const norm = (s) => String(s || "").trim().toLowerCase();
+  const money = (x) => Number(x || 0).toFixed(2);
 
-  let games = [];
-  let allTx = [];
-  let rows = [];
-
-  function nowText() { return new Date().toLocaleString("en-GB"); }
-  function money(x) { const n = Number(x || 0); return n.toFixed(2); }
-
-  function setMsg(text, ok = true) {
-    if (!gameMsg) return;
-    gameMsg.textContent = text || "";
-    gameMsg.className = "msg " + (ok ? "ok" : "bad");
-    if (!text) gameMsg.className = "msg";
+  // 🔁 If your API uses different field names, adjust here only:
+  function getGameName(t) {
+    return t.gameTypeName || t.gameName || t.game || t.gameType || "";
+  }
+  function getCustomerName(t) {
+    return t.customerName || t.customer || t.player || t.customerFullName || "";
   }
 
-  function openModal(title, html, onSave) {
-    modalTitle.textContent = title;
-    modalBody.innerHTML = html;
-    modalOnSave = onSave || null;
-    modalBackdrop.style.display = "flex";
-  }
+  async function load() {
+    if (gamesTbody) gamesTbody.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
+    if (custTbody) custTbody.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
 
-  function closeModal() {
-    modalBackdrop.style.display = "none";
-    modalBody.innerHTML = "";
-    modalOnSave = null;
-  }
-
-  function isApproved(t) {
-    return String(t.status || "").toLowerCase() === "approved";
-  }
-
-  function signedAmount(t) {
-    const amt = Number(t.amount || 0);
-    if (!Number.isFinite(amt)) return 0;
-    const dir = String(t.direction || "").toLowerCase();
-    return dir === "debit" ? -amt : amt;
-  }
-
-  async function loadCustomers() {
-    const customers = await apiFetch("/api/customers").catch(() => []);
-    selCustomer.innerHTML =
-      `<option value="">Select customer...</option>` +
-      (customers || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
-  }
-
-  async function loadGameTypes() {
-    const all = await apiFetch("/api/gametypes").catch(() => []);
-    games = (all || []).filter(g => g.isEnabled !== false);
-  }
-
-  async function loadCustomerTransactions(customerId) {
-    if (!customerId) return [];
-    return await apiFetch(`/api/transactions/by-customer?customerId=${encodeURIComponent(customerId)}&take=5000`).catch(() => []);
-  }
-
-  function computeRows() {
-    rows = [];
-
-    // map approved tx by gameTypeId
-    const map = new Map();
-    for (const t of (allTx || [])) {
-      const gid = t.gameTypeId;
-      if (!gid) continue;
-      if (!isApproved(t)) continue;
-
-      const bucket = map.get(gid) || { records: 0, balance: 0 };
-      bucket.records += 1;
-      bucket.balance += signedAmount(t);
-      map.set(gid, bucket);
-    }
-
-    for (const g of games) {
-      const m = map.get(g.id) || { records: 0, balance: 0 };
-      rows.push({
-        id: g.id,
-        name: g.name,
-        records: m.records,
-        balance: m.balance
-      });
-    }
-  }
-
-  function render() {
-    const customerId = selCustomer.value;
-    const q = (gameSearch.value || "").trim().toLowerCase();
-
-    if (!customerId) {
-      tbody.innerHTML = `<tr><td colspan="4" class="mutedSmall">Select customer first.</td></tr>`;
-      gameCount.textContent = `0 game(s)`;
-      return;
-    }
-
-    const view = rows
-      .filter(r => !q || r.name.toLowerCase().includes(q))
-      .sort((a,b) => a.name.localeCompare(b.name));
-
-    gameCount.textContent = `${view.length} game(s)`;
-
-    if (!view.length) {
-      tbody.innerHTML = `<tr><td colspan="4" class="mutedSmall">No game(s). Click <b>Add Game</b>.</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = view.map(r => `
-      <tr data-id="${r.id}">
-        <td style="width:260px;"><b>${escapeHtml(r.name)}</b></td>
-        <td class="right mono" style="width:170px;">${escapeHtml(String(r.records))}</td>
-        <td class="right mono" style="width:220px;"><span class="pill">${escapeHtml(money(r.balance))}</span></td>
-        <td class="center" style="width:200px;">
-          <button class="btn ghost" data-action="rename">Rename</button>
-          <button class="btn ghost danger" data-action="disable">Disable</button>
-        </td>
-      </tr>
-    `).join("");
-  }
-
-  async function refresh() {
-    setMsg("");
-    const customerId = selCustomer.value;
-
-    if (!customerId) {
-      allTx = [];
-      computeRows();
-      render();
-      gameUpdated.textContent = "—";
-      return;
-    }
-
-    allTx = await loadCustomerTransactions(customerId);
-    computeRows();
-    render();
-    gameUpdated.textContent = `Updated: ${nowText()}`;
-  }
-
-  // ✅ Game kiosk: Add Game modal
-  function openAddGame() {
-    openModal("Add Game", `
-      <div class="formRow">
-        <label class="label">Game Name</label>
-        <input id="mGameName" class="input" type="text" placeholder="e.g. Pussy888 / Live22" />
-      </div>
-      <div class="mutedSmall" style="margin-top:10px;">
-        This will be saved to DB and appear in all pages.
-      </div>
-      <div id="mErr" class="msg bad" style="margin-top:10px;"></div>
-    `, async () => {
-      const name = ($("mGameName")?.value || "").trim();
-      const err = $("mErr");
-      if (err) err.textContent = "";
-
-      if (!name) {
-        if (err) err.textContent = "Game name is required.";
-        return;
-      }
-
-      try {
-        await apiFetch("/api/gametypes", {
-          method: "POST",
-          body: JSON.stringify({ name })
-        });
-
-        closeModal();
-
-        // reload games from DB so it shows immediately
-        await loadGameTypes();
-        await refresh();
-
-        setMsg("Game added.", true);
-      } catch (e) {
-        const msg = String(e?.message || e || "Failed to add game.");
-        if (err) err.textContent = msg;
-        else setMsg(msg, false);
-      }
-    });
-  }
-
-  // rename / disable actions
-  function openRename(gameId) {
-    const g = games.find(x => String(x.id) === String(gameId));
-    if (!g) return;
-
-    openModal("Rename Game", `
-      <div class="formRow">
-        <label class="label">Game Name</label>
-        <input id="mGameName" class="input" type="text" value="${escapeHtml(g.name)}" />
-      </div>
-      <div id="mErr" class="msg bad" style="margin-top:10px;"></div>
-    `, async () => {
-      const name = ($("mGameName")?.value || "").trim();
-      const err = $("mErr");
-      if (err) err.textContent = "";
-
-      if (!name) {
-        if (err) err.textContent = "Name is required.";
-        return;
-      }
-
-      try {
-        await apiFetch(`/api/gametypes/${gameId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ name })
-        });
-
-        closeModal();
-        await loadGameTypes();
-        await refresh();
-        setMsg("Game renamed.", true);
-      } catch (e) {
-        const msg = String(e?.message || e || "Rename failed.");
-        if (err) err.textContent = msg;
-        else setMsg(msg, false);
-      }
-    });
-  }
-
-  async function disableGame(gameId) {
+    let txs = [];
     try {
-      await apiFetch(`/api/gametypes/${gameId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ isEnabled: false })
-      });
-      await loadGameTypes();
-      await refresh();
-      setMsg("Game disabled.", true);
+      txs = await apiFetch("/api/transactions/all");
+      if (!Array.isArray(txs)) txs = [];
     } catch (e) {
-      setMsg(String(e?.message || e || "Disable failed."), false);
+      console.error(e);
+      if (gamesTbody) gamesTbody.innerHTML = `<tr><td colspan="4">Failed to load</td></tr>`;
+      if (custTbody) custTbody.innerHTML = `<tr><td colspan="5">Failed to load</td></tr>`;
+      return;
+    }
+
+    const approved = txs.filter(t => norm(t.status) === "approved");
+
+    // -------- PER GAME --------
+    const gMap = new Map();
+    for (const t of approved) {
+      const game = getGameName(t);
+      if (!game) continue;
+
+      const amt = Number(t.amount || 0);
+      if (!amt) continue;
+
+      const type = norm(t.type);
+      if (!gMap.has(game)) gMap.set(game, { deposits: 0, withdrawals: 0, balance: 0 });
+
+      const g = gMap.get(game);
+      if (type === "deposit") { g.deposits += amt; g.balance -= amt; }
+      if (type === "withdrawal") { g.withdrawals += amt; g.balance += amt; }
+    }
+
+    const gq = norm(gameSearch?.value);
+    const gameRows = Array.from(gMap.entries())
+      .map(([name, v]) => ({ name, ...v }))
+      .filter(r => !gq || norm(r.name).includes(gq))
+      .sort((a, b) => norm(a.name).localeCompare(norm(b.name)));
+
+    if (gamesCount) gamesCount.textContent = `${gameRows.length} game(s)`;
+
+    if (gamesTbody) {
+      gamesTbody.innerHTML = gameRows.length
+        ? gameRows.map(r => `
+          <tr>
+            <td><strong>${escapeHtml(r.name)}</strong></td>
+            <td class="right">${money(r.deposits)}</td>
+            <td class="right">${money(r.withdrawals)}</td>
+            <td class="right"><strong>${money(r.balance)}</strong></td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="4" class="mutedSmall">No records</td></tr>`;
+    }
+
+    // -------- PER CUSTOMER + GAME --------
+    const cgMap = new Map();
+    for (const t of approved) {
+      const customer = getCustomerName(t);
+      const game = getGameName(t);
+      if (!customer || !game) continue;
+
+      const amt = Number(t.amount || 0);
+      if (!amt) continue;
+
+      const type = norm(t.type);
+      const key = `${customer}||${game}`;
+
+      if (!cgMap.has(key)) cgMap.set(key, { customer, game, deposits: 0, withdrawals: 0, balance: 0 });
+      const r = cgMap.get(key);
+
+      if (type === "deposit") { r.deposits += amt; r.balance -= amt; }
+      if (type === "withdrawal") { r.withdrawals += amt; r.balance += amt; }
+    }
+
+    const cq = norm(custSearch?.value);
+
+    const cgRows = Array.from(cgMap.values())
+      .filter(r => {
+        if (cq && !norm(r.customer).includes(cq)) return false;
+        if (gq && !norm(r.game).includes(gq)) return false;
+        return true;
+      })
+      .sort((a, b) => norm(a.customer).localeCompare(norm(b.customer)) || norm(a.game).localeCompare(norm(b.game)));
+
+    if (custCount) custCount.textContent = `${cgRows.length} record(s)`;
+
+    if (custTbody) {
+      custTbody.innerHTML = cgRows.length
+        ? cgRows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.customer)}</td>
+            <td>${escapeHtml(r.game)}</td>
+            <td class="right">${money(r.deposits)}</td>
+            <td class="right">${money(r.withdrawals)}</td>
+            <td class="right"><strong>${money(r.balance)}</strong></td>
+          </tr>
+        `).join("")
+        : `<tr><td colspan="5" class="mutedSmall">No records</td></tr>`;
     }
   }
 
-  // events
-  btnAddGame.addEventListener("click", openAddGame);
-  btnRefresh.addEventListener("click", refresh);
-  selCustomer.addEventListener("change", refresh);
-  gameSearch.addEventListener("input", render);
+  btnRefresh?.addEventListener("click", load);
+  custSearch?.addEventListener("input", load);
+  gameSearch?.addEventListener("input", load);
 
-  tbody.addEventListener("click", (e) => {
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-
-    const tr = btn.closest("tr[data-id]");
-    if (!tr) return;
-
-    const id = tr.getAttribute("data-id");
-    const act = btn.getAttribute("data-action");
-
-    if (act === "rename") return openRename(id);
-    if (act === "disable") return disableGame(id);
-  });
-
-  btnModalSave.addEventListener("click", async () => {
-    if (typeof modalOnSave === "function") await modalOnSave();
-  });
-
-  btnModalCancel?.addEventListener("click", closeModal);
-  btnModalCancel2?.addEventListener("click", closeModal);
-  modalBackdrop.addEventListener("click", (e) => {
-    if (e.target === modalBackdrop) closeModal();
-  });
-
-  // init
-  (async () => {
-    await loadCustomers();
-    await loadGameTypes();
-    await refresh();
-  })();
+  load();
 });
