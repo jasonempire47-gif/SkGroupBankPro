@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SK GROUP BANKPRO - Customer Events</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Page layout consistent with your app */
+    .main { padding: 16px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 980px) { .grid2 { grid-template-columns: 1fr; } }
+
+    .cardPad { padding: 16px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .spacer { flex: 1; }
+
+    /* Lucky wheel */
+    .wheelWrap {
+      display:flex;
+      gap: 18px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .wheelStage {
+      position: relative;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      box-shadow: 0 10px 30px rgba(0,0,0,.12);
+      background: #fff;
+    }
+
+    canvas#wheelCanvas {
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      display:block;
+    }
+
+    .wheelPointer {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-bottom: 28px solid #111;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,.25));
+      z-index: 5;
+    }
+
+    .wheelCenter {
+      position:absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: #111;
+      color: #fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight: 700;
+      letter-spacing: .6px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.25);
+      user-select:none;
+      z-index: 4;
+    }
+
+    .wheelMeta {
+      min-width: 320px;
+      max-width: 420px;
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btnPrimary { background:#111; color:#fff; }
+    .btnGhost { background: #f0f0f0; color:#111; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    .pill {
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f5f5f5;
+      font-size: 12px;
+    }
+
+    /* Confetti */
+    .confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      overflow: hidden;
+      display:none;
+    }
+    .confetti.show { display:block; }
+    .confetti i {
+      position:absolute;
+      width: 10px; height: 16px;
+      opacity:.9;
+      transform: translateY(-20px) rotate(0deg);
+      animation: fall linear forwards;
+    }
+    @keyframes fall {
+      to { transform: translateY(110vh) rotate(720deg); opacity: 1; }
+    }
+
+    /* Leaderboard */
+    .leaderTable { width: 100%; border-collapse: collapse; }
+    .leaderTable th, .leaderTable td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(0,0,0,.08);
+      font-size: 14px;
+    }
+    .rankBadge {
+      display:inline-flex;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      align-items:center;
+      justify-content:center;
+      font-weight: 700;
+      background: #111;
+      color:#fff;
+      font-size: 12px;
+    }
+    .muted { opacity:.75; font-size: 13px; }
+    .successBox {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.06);
+      margin-top: 10px;
+      font-size: 14px;
+      display:none;
+    }
+    .successBox.show { display:block; }
+
+    .noteBox {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(0,0,0,.04);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .field {
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 200px;
+    }
+    .field label { font-size: 12px; opacity: .75; }
+    .field input, .field select {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,.12);
+      outline: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="appRoot">
+    <!-- Sidebar (match your existing pattern) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" id="btnSidebarToggle" type="button" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">MAIN</div>
+      <a class="navItem" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
+
+      <div class="navSectionLabel">EVENTS</div>
+      <a class="navItem active" href="CustomerEvent.html"><span class="navIcon">🎉</span><span>Customer Events</span></a>
+
+      <div class="navSectionLabel">ACCOUNT</div>
+      <a class="navItem" href="index.html"><span class="navIcon">🔐</span><span>Login</span></a>
+    </aside>
+
+    <main class="main">
+      <div class="card">
+        <div class="cardPad">
+          <div class="tableTitle">Customer Events</div>
+          <div class="mutedSmall">Lucky Wheel + Top Leader of the Month</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <!-- Lucky Wheel -->
+        <section class="card">
+          <div class="cardPad">
+            <div class="row">
+              <div>
+                <div class="tableTitle">Lucky Wheel</div>
+                <div class="mutedSmall">Spin to win credits, rebates, or bonuses.</div>
+              </div>
+              <div class="spacer"></div>
+              <span class="pill"><strong id="spinStatus">Ready</strong> • <span id="spinInfo">1 spin available</span></span>
+              <button id="btnSound" class="btn btnGhost" type="button">🔊 Sound: ON</button>
+            </div>
+
+            <div class="wheelWrap" style="margin-top:14px;">
+              <div class="wheelStage" aria-label="Lucky wheel stage">
+                <div class="wheelPointer" aria-hidden="true"></div>
+                <canvas id="wheelCanvas" width="360" height="360"></canvas>
+                <div class="wheelCenter">SPIN</div>
+              </div>
+
+              <div class="wheelMeta">
+                <div class="noteBox">
+                  <b>How it works:</b> prizes can be weighted (rarer = lower chance).
+                  You can connect the winner to your API later (create a transaction / audit log).
+                </div>
+
+                <div style="margin-top:12px;" class="row">
+                  <button id="btnSpin" class="btn btnPrimary" type="button">Spin Now</button>
+                  <button id="btnResetSpin" class="btn btnGhost" type="button">Reset (Demo)</button>
+                </div>
+
+                <div id="winBox" class="successBox"></div>
+
+                <div style="margin-top:14px;" class="row">
+                  <div class="field">
+                    <label>Customer (optional display)</label>
+                    <input id="evtCustomerName" placeholder="e.g., John Doe" />
+                  </div>
+                  <div class="field">
+                    <label>Spin rule</label>
+                    <select id="spinRule">
+                      <option value="daily" selected>1 spin per day</option>
+                      <option value="session">Unlimited (demo)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="muted" style="margin-top:10px;">
+                  Tip: if you want to lock to login user, read it from your token (JWT) later.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Leaderboard -->
+        <section class="card">
+          <div class="cardPad">
+            <div class="row">
+              <div>
+                <div class="tableTitle">Top Leader of the Month</div>
+                <div class="mutedSmall">Highest performance (Deposits / Net / WinLoss / Points).</div>
+              </div>
+              <div class="spacer"></div>
+              <button id="btnRefreshLeader" class="btn btnGhost" type="button">Refresh</button>
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+              <div class="field">
+                <label>Metric</label>
+                <select id="leaderMetric">
+                  <option value="points" selected>Points</option>
+                  <option value="deposit">Total Deposits</option>
+                  <option value="net">Net Profit</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Month</label>
+                <input id="leaderMonth" type="month" />
+              </div>
+            </div>
+
+            <div style="margin-top:12px;">
+              <table class="leaderTable" aria-label="Leaderboard">
+                <thead>
+                  <tr>
+                    <th style="width:72px;">Rank</th>
+                    <th>Customer</th>
+                    <th style="width:140px;">Score</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderTbody"></tbody>
+              </table>
+              <div class="muted" id="leaderHint" style="margin-top:10px;"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <!-- Optional: your api.js (if your pages already include it globally, you can remove this) -->
+  <script src="./js/api.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Require login (optional)
+      if (typeof requireAuth === "function") requireAuth(["Admin", "Staff", "Finance"]);
+
+      const $ = (id) => document.getElementById(id);
+
+      // Sidebar collapse button (if your app uses it)
+      const toggleBtn = $("btnSidebarToggle");
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", () => {
+          document.body.classList.toggle("sidebar-collapsed");
+        });
+      }
+
+      /* ---------------------------
+         Lucky Wheel config
+      --------------------------- */
+
+      // Prize list: weight = chance
+      const PRIZES = [
+        { label: "₱50 Bonus",      weight: 18, value: 50,  type: "bonus" },
+        { label: "₱100 Bonus",     weight: 14, value: 100, type: "bonus" },
+        { label: "₱200 Bonus",     weight: 10, value: 200, type: "bonus" },
+        { label: "₱500 Bonus",     weight: 5,  value: 500, type: "bonus" },
+        { label: "1% Rebate",      weight: 18, value: 1,   type: "rebate" },
+        { label: "2% Rebate",      weight: 10, value: 2,   type: "rebate" },
+        { label: "5% Rebate",      weight: 4,  value: 5,   type: "rebate" },
+        { label: "Try Again",      weight: 21, value: 0,   type: "none" }
+      ];
+
+      const canvas = $("wheelCanvas");
+      const ctx = canvas.getContext("2d");
+      const btnSpin = $("btnSpin");
+      const btnResetSpin = $("btnResetSpin");
+      const spinStatus = $("spinStatus");
+      const spinInfo = $("spinInfo");
+      const winBox = $("winBox");
+      const spinRule = $("spinRule");
+      const btnSound = $("btnSound");
+      const evtCustomerName = $("evtCustomerName");
+
+      let soundOn = true;
+      let isSpinning = false;
+
+      // wheel state
+      let rotation = 0; // radians
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = Math.min(cx, cy) - 6;
+
+      function rand(min, max) { return Math.random() * (max - min) + min; }
+
+      function pickWeightedPrize() {
+        const total = PRIZES.reduce((s, p) => s + p.weight, 0);
+        let r = Math.random() * total;
+        for (const p of PRIZES) {
+          r -= p.weight;
+          if (r <= 0) return p;
+        }
+        return PRIZES[PRIZES.length - 1];
+      }
+
+      // daily spin lock
+      function getSpinKey() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        // If you want per-user, include username/id in key later.
+        return `bankpro_spin_${yyyy}-${mm}-${dd}`;
+      }
+
+      function canSpinNow() {
+        if (spinRule.value === "session") return true;
+        return !localStorage.getItem(getSpinKey());
+      }
+
+      function setSpun() {
+        if (spinRule.value === "session") return;
+        localStorage.setItem(getSpinKey(), "1");
+      }
+
+      function resetSpun() {
+        localStorage.removeItem(getSpinKey());
+      }
+
+      function updateSpinUi() {
+        const ok = canSpinNow();
+        btnSpin.disabled = !ok || isSpinning;
+        spinStatus.textContent = ok ? "Ready" : "Locked";
+        spinInfo.textContent = ok ? "1 spin available" : "Come back tomorrow";
+      }
+
+      // Draw wheel
+      function drawWheel() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const n = PRIZES.length;
+        const arc = (Math.PI * 2) / n;
+
+        // outer ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "rgba(0,0,0,.08)";
+        ctx.stroke();
+
+        for (let i = 0; i < n; i++) {
+          const start = rotation + i * arc;
+          const end = start + arc;
+
+          // slice
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, radius - 2, start, end);
+          ctx.closePath();
+
+          // alternating shading (no hard-coded colors required, but needs some contrast)
+          const shade = i % 2 === 0 ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.10)";
+          ctx.fillStyle = shade;
+          ctx.fill();
+
+          // text
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(start + arc / 2);
+          ctx.textAlign = "right";
+          ctx.fillStyle = "#111";
+          ctx.font = "600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.fillText(PRIZES[i].label, radius - 18, 6);
+          ctx.restore();
+        }
+
+        // center hub shadow ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 60, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,.25)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Confetti
+      function fireConfetti() {
+        const c = $("confetti");
+        c.innerHTML = "";
+        c.classList.add("show");
+
+        const pieces = 90;
+        for (let i = 0; i < pieces; i++) {
+          const el = document.createElement("i");
+          el.style.left = Math.round(Math.random() * 100) + "vw";
+          el.style.top = "-20px";
+          el.style.background = `hsl(${Math.round(Math.random() * 360)}, 90%, 55%)`;
+          el.style.animationDuration = rand(1.6, 3.2) + "s";
+          el.style.animationDelay = rand(0, 0.25) + "s";
+          el.style.transform = `translateY(-20px) rotate(${Math.round(rand(0, 360))}deg)`;
+          c.appendChild(el);
+        }
+
+        setTimeout(() => c.classList.remove("show"), 3200);
+      }
+
+      // Sound (simple tick with WebAudio)
+      let audioCtx = null;
+      function beep(freq = 880, duration = 0.03, vol = 0.06) {
+        if (!soundOn) return;
+        try {
+          audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.frequency.value = freq;
+          o.type = "square";
+          g.gain.value = vol;
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start();
+          o.stop(audioCtx.currentTime + duration);
+        } catch {}
+      }
+
+      btnSound.addEventListener("click", () => {
+        soundOn = !soundOn;
+        btnSound.textContent = soundOn ? "🔊 Sound: ON" : "🔇 Sound: OFF";
+      });
+
+      // Spin animation
+      async function spin() {
+        if (isSpinning) return;
+        if (!canSpinNow()) { updateSpinUi(); return; }
+
+        isSpinning = true;
+        winBox.classList.remove("show");
+        winBox.textContent = "";
+
+        btnSpin.disabled = true;
+        spinStatus.textContent = "Spinning...";
+        spinInfo.textContent = "Good luck!";
+
+        const prize = pickWeightedPrize();
+
+        const n = PRIZES.length;
+        const arc = (Math.PI * 2) / n;
+
+        // pointer is at top; we want selected segment center to land there.
+        const prizeIndex = PRIZES.findIndex(p => p.label === prize.label);
+
+        // segment center angle relative to rotation
+        const targetAngle = (Math.PI * 2) - (prizeIndex * arc + arc / 2);
+
+        // add some full spins
+        const extraSpins = Math.PI * 2 * (5 + Math.floor(Math.random() * 3)); // 5-7 spins
+        const startRot = rotation;
+        const endRot = extraSpins + targetAngle;
+
+        const duration = 4200; // ms
+        const start = performance.now();
+
+        let lastTick = 0;
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+        return new Promise((resolve) => {
+          function frame(now) {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = easeOutCubic(t);
+            rotation = startRot + (endRot - startRot) * eased;
+
+            // tick sound when crossing segment boundaries (rough)
+            const tickNow = Math.floor((rotation % (Math.PI * 2)) / arc);
+            if (tickNow !== lastTick) { beep(1200, 0.02, 0.04); lastTick = tickNow; }
+
+            drawWheel();
+
+            if (t < 1) requestAnimationFrame(frame);
+            else {
+              isSpinning = false;
+              setSpun();
+              updateSpinUi();
+
+              // result UI
+              const name = (evtCustomerName.value || "").trim();
+              const who = name ? ` for <b>${escapeHtml(name)}</b>` : "";
+
+              if (prize.type === "none") {
+                winBox.innerHTML = `Result${who}: <b>${escapeHtml(prize.label)}</b>. Spin again tomorrow.`;
+              } else {
+                winBox.innerHTML = `Congratulations${who}! You won <b>${escapeHtml(prize.label)}</b>.`;
+                fireConfetti();
+                beep(660, 0.08, 0.07);
+              }
+              winBox.classList.add("show");
+
+              // OPTIONAL: save winner to API (add your endpoint later)
+              // await saveSpinResult(prize);
+
+              resolve(prize);
+            }
+          }
+          requestAnimationFrame(frame);
+        });
+      }
+
+      btnSpin.addEventListener("click", spin);
+      btnResetSpin.addEventListener("click", () => {
+        resetSpun();
+        updateSpinUi();
+        winBox.classList.remove("show");
+      });
+
+      spinRule.addEventListener("change", () => {
+        // switching rules should update lock state immediately
+        updateSpinUi();
+      });
+
+      // initial draw
+      drawWheel();
+      updateSpinUi();
+
+      /* ---------------------------
+         Leaderboard
+      --------------------------- */
+      const leaderTbody = $("leaderTbody");
+      const btnRefreshLeader = $("btnRefreshLeader");
+      const leaderMetric = $("leaderMetric");
+      const leaderMonth = $("leaderMonth");
+      const leaderHint = $("leaderHint");
+
+      function fmtNumber(x) {
+        const n = Number(x || 0);
+        return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+
+      function monthDefault() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        return `${yyyy}-${mm}`;
+      }
+
+      leaderMonth.value = monthDefault();
+
+      // Demo fallback leaders
+      function demoLeaders(metric) {
+        const base = [
+          { name: "VIP_Alpha", points: 1280, deposit: 250000, net: 82000 },
+          { name: "VIP_Bravo", points: 1105, deposit: 190000, net: 64000 },
+          { name: "VIP_Charlie", points: 980,  deposit: 175000, net: 59000 },
+          { name: "VIP_Delta", points: 870,  deposit: 160000, net: 51000 },
+          { name: "VIP_Echo", points: 760,  deposit: 142000, net: 46000 }
+        ];
+        return base
+          .slice()
+          .sort((a,b) => (b[metric] || 0) - (a[metric] || 0))
+          .slice(0, 10);
+      }
+
+      async function loadLeaders() {
+        const metric = leaderMetric.value;
+        const month = leaderMonth.value;
+
+        leaderHint.textContent = "";
+        leaderTbody.innerHTML = `<tr><td colspan="3" class="muted">Loading...</td></tr>`;
+
+        // If you later add an API endpoint, use it here
+        // Example endpoint you can implement:
+        // GET /api/events/leaderboard?month=YYYY-MM&metric=points
+        try {
+          let rows = null;
+
+          if (typeof apiFetch === "function") {
+            // try API, fallback if 404
+            try {
+              rows = await apiFetch(`/api/events/leaderboard?month=${encodeURIComponent(month)}&metric=${encodeURIComponent(metric)}`);
+            } catch (e) {
+              rows = null;
+            }
+          }
+
+          if (!Array.isArray(rows) || rows.length === 0) {
+            rows = demoLeaders(metric);
+            leaderHint.textContent = "Showing demo leaderboard (API not connected yet).";
+          } else {
+            leaderHint.textContent = `Leaderboard loaded from API for ${month}.`;
+          }
+
+          leaderTbody.innerHTML = rows.map((r, idx) => {
+            const score = r[metric] ?? r.score ?? 0;
+            return `
+              <tr>
+                <td><span class="rankBadge">${idx + 1}</span></td>
+                <td>${escapeHtml(r.name || r.customerName || "Unknown")}</td>
+                <td><b>${fmtNumber(score)}</b></td>
+              </tr>
+            `;
+          }).join("");
+        } catch (err) {
+          leaderTbody.innerHTML = `<tr><td colspan="3" class="muted">Failed to load leaderboard.</td></tr>`;
+          leaderHint.textContent = String(err || "");
+        }
+      }
+
+      btnRefreshLeader.addEventListener("click", loadLeaders);
+      leaderMetric.addEventListener("change", loadLeaders);
+      leaderMonth.addEventListener("change", loadLeaders);
+
+      // initial load
+      loadLeaders();
+    });
+  </script>
+</body>
+</html>
