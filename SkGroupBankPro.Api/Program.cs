@@ -24,7 +24,6 @@ builder.Services.AddEndpointsApiExplorer();
 /* ---------------- SWAGGER + JWT ---------------- */
 builder.Services.AddSwaggerGen(c =>
 {
-    // ✅ FIX: nested types use "+" in FullName; Swagger refs may fail unless normalized
     c.CustomSchemaIds(t => (t.FullName ?? t.Name).Replace("+", "."));
 
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -68,8 +67,11 @@ builder.Services.AddScoped<PasswordHasher>();
 // ✅ SignalR realtime
 builder.Services.AddSignalR();
 
-// ✅ Auto rebates background service
+// ✅ Auto rebates background service (daily rebate cron)
 builder.Services.AddHostedService<AutoRebateService>();
+
+// ✅ NEW: Auto-create DailyWinLoss from transactions (cashflow proxy)
+builder.Services.AddHostedService<TransactionWinLossSyncService>();
 
 /* ---------------- JWT ---------------- */
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -158,11 +160,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<DashboardHub>("/hubs/dashboard");
-
-// ✅ IMPORTANT:
-// Only keep fallback IF you are hosting your UI inside the API wwwroot.
-// If your UI is on https://skgroup.xyz (separate hosting), remove this.
-// app.MapFallbackToFile("index.html");
 
 /* ---------------- SEED + FIX ADMIN PASSWORD ---------------- */
 using (var scope = app.Services.CreateScope())
