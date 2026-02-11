@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return n.toFixed(2);
   }
 
-  // ✅ Date: show PNG time from createdAtUtc
+  // Show PNG time from createdAtUtc
   function fmtDatePng(utcString) {
     if (!utcString) return "-";
     const d = new Date(utcString);
@@ -43,7 +43,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function canEdit() {
     const role = (localStorage.getItem("role") || "").toLowerCase();
-    // ✅ backend allows edit only for Admin/Finance now
     return role.includes("admin") || role.includes("finance");
   }
 
@@ -110,7 +109,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
-  // Paging
+  // expose refresh for staff.js
+  window.refreshAllTransactions = loadAll;
+
   txPrev?.addEventListener("click", async () => {
     if (page > 1) {
       page--;
@@ -125,7 +126,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Refresh + filter
   btnRefreshTx?.addEventListener("click", async () => {
     page = 1;
     await loadAll();
@@ -136,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
     await loadAll();
   });
 
-  // Search debounce
   let t = null;
   txSearch?.addEventListener("input", () => {
     if (t) clearTimeout(t);
@@ -146,6 +145,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 350);
   });
 
-  // Initial
   loadAll();
 });

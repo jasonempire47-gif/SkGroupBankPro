@@ -91,7 +91,7 @@
 
           <select id="customerSelect" style="min-width:240px;"></select>
 
-          <!-- ✅ MAIN GAME SELECT -->
+          <!-- MAIN GAME SELECT: JS will populate values with numeric IDs -->
           <select id="gameTypeSelect" style="min-width:200px;">
             <option value="">Game Type (optional)</option>
           </select>
@@ -178,7 +178,7 @@
     </main>
   </div>
 
-  <!-- EDIT MODAL -->
+  <!-- EDIT MODAL (your edit script can hook into these IDs) -->
   <div id="editModal" class="modalOverlay" style="display:none;">
     <div class="card" style="width:min(720px, 92vw); padding:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
@@ -211,17 +211,11 @@
           </select>
         </div>
 
-        <!-- ✅ EDIT MODAL GAME SELECT (fixed id + fixed 6 games) -->
+        <!-- EDIT MODAL GAME SELECT: JS will populate IDs -->
         <div style="grid-column: 1 / -1;">
           <div class="mutedSmall" style="margin:0 0 6px;">Game Type (optional)</div>
           <select id="editGameTypeSelect">
             <option value="">Game Type (optional)</option>
-            <option value="918Kaya">918Kaya</option>
-            <option value="Mega88">Mega88</option>
-            <option value="SCR888">SCR888</option>
-            <option value="Live22">Live22</option>
-            <option value="Joker123">Joker123</option>
-            <option value="MegaH5">MegaH5</option>
           </select>
         </div>
 
@@ -249,16 +243,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
   <script src="js/realtime.js"></script>
 
-  <!-- ✅ staff.js loads customers + games (with fallback) -->
   <script src="js/staff.js"></script>
-
-  <!-- ✅ table logic -->
   <script src="js/staff-all-transactions.js"></script>
 
-  <!-- Signal LAST -->
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.5/signalr.min.js"></script>
-   <script src="js/realtime.js"></script> 
-   
   <script>
     (function () {
       const username = localStorage.getItem("username") || "User";

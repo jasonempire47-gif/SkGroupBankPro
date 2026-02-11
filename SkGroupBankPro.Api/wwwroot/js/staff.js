@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     f.addEventListener("submit", (e) => e.preventDefault());
   });
 
-  // ---- Elements (must exist in staff.html) ----
+  // ---- Elements ----
   const cName = $("cName");
   const cPhone = $("cPhone");
   const btnCreateCustomer = $("btnCreateCustomer");
@@ -20,16 +20,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const txKind = $("txKind");
   const customerSelect = $("customerSelect");
-  const gameSelMain = $("gameTypeSelect");
+  const gameSelMain = $("gameTypeSelect");     // MUST hold numeric IDs as values
   const bankType = $("bankType");
   const referenceNo = $("referenceNo");
   const amount = $("amount");
   const notes = $("notes");
-  const createdAtUtc = $("createdAtUtc");
+  const createdAtUtc = $("createdAtUtc");      // datetime-local showing PNG time
   const btnSubmitTx = $("btnSubmitTx");
   const txMsg = $("txMsg");
 
-  const gameSelEdit = $("editGameTypeSelect"); // optional
+  const gameSelEdit = $("editGameTypeSelect"); // optional modal select
 
   // ---- Helpers ----
   function setMsg(el, text, kind = "muted") {
@@ -51,14 +51,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/'/g, "&#039;");
   }
 
-  // PNG time (UTC+10)
-  function toPngDateTimeLocalValue(now = new Date()) {
-    const pngMs = now.getTime() + (10 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000);
-    const d = new Date(pngMs);
+  // Deterministic PNG time (UTC+10):
+  // take NOW -> UTC -> +10h -> format for datetime-local
+  function toPngDateTimeLocalValue(date = new Date()) {
+    const utcMs = date.getTime() + (date.getTimezoneOffset() * 60 * 1000);
+    const png = new Date(utcMs + (10 * 60 * 60 * 1000));
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${png.getFullYear()}-${pad(png.getMonth() + 1)}-${pad(png.getDate())}T${pad(png.getHours())}:${pad(png.getMinutes())}`;
   }
 
+  // UI input is PNG local => API expects UTC => subtract 10 hours
   function readCreatedAtUtc() {
     const v = (createdAtUtc?.value || "").trim();
     if (!v) return new Date().toISOString();
@@ -69,17 +71,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const [Y, M, D] = datePart.split("-").map(Number);
     const [h, m] = timePart.split(":").map(Number);
 
-    // PNG local => UTC = PNG - 10 hours
-    const utc = new Date(Date.UTC(Y, (M - 1), D, h - 10, m, 0));
+    const utc = new Date(Date.UTC(Y, (M - 1), D, h - 10, m, 0, 0));
     return utc.toISOString();
   }
 
-  // ---- CRITICAL: safe API wrapper to show REAL backend error ----
+  // ---- safe API wrapper (shows real status + body) ----
   async function safeApi(path, options = {}) {
-    // Prefer your existing apiFetch if available, but we still want real error text
-    // If apiFetch is missing or opaque, we do direct fetch.
     const token = localStorage.getItem("token") || "";
-    const API_BASE = (window.API_BASE || "").trim(); // from api.js, often "" for same-origin
+    const API_BASE = (window.API_BASE || "").trim(); // from api.js
 
     const url = `${API_BASE}${path}`;
 
@@ -97,7 +96,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       res = await fetch(url, { ...options, headers });
     } catch (e) {
-      // Network/CORS/DNS/HTTPS mixed content
       throw new Error(`NETWORK ERROR calling ${path}: ${e?.message || e}`);
     }
 
@@ -105,80 +103,47 @@ document.addEventListener("DOMContentLoaded", async () => {
     const rawText = await res.text();
 
     if (!res.ok) {
-      // Show status + response body (most important for debugging)
       throw new Error(`HTTP ${res.status} ${res.statusText} on ${path}: ${rawText || "(empty response)"}`);
     }
 
-    // Try parse JSON, else return text
     if (contentType.includes("application/json")) {
       try { return JSON.parse(rawText || "null"); } catch { return rawText; }
     }
     return rawText;
   }
 
-  // ---- Quick element sanity check ----
-  function mustExist(id, el) {
-    if (!el) console.warn(`[staff] Missing element with id="${id}" (check staff.html IDs)`);
-  }
-  mustExist("cName", cName);
-  mustExist("cPhone", cPhone);
-  mustExist("btnCreateCustomer", btnCreateCustomer);
-  mustExist("customerSelect", customerSelect);
-  mustExist("btnSubmitTx", btnSubmitTx);
-
-  // ---- Game types (fallback always) ----
-  const FALLBACK_GAMES = [
-    { name: "918Kaya" },
-    { name: "Mega88" },
-    { name: "SCR888" },
-    { name: "Live22" },
-    { name: "Joker123" },
-    { name: "MegaH5" }
-  ];
-
-  function renderGameOptions(selectEl, list) {
+  // ---- Game types ----
+  function renderGameOptions(selectEl, list, includeBlank = true) {
     if (!selectEl) return;
+
     const prev = selectEl.value || "";
+    const blank = includeBlank ? `<option value="">Game Type (optional)</option>` : "";
     selectEl.innerHTML =
-      `<option value="">Game Type (optional)</option>` +
-      list.map(g => `<option value="${escapeHtml(g.name)}">${escapeHtml(g.name)}</option>`).join("");
+      blank +
+      list.map(g => `<option value="${escapeHtml(String(g.id))}">${escapeHtml(g.name)}</option>`).join("");
+
     if (prev) selectEl.value = prev;
   }
 
-  function normalizeApiGames(apiGames) {
-    if (!Array.isArray(apiGames)) return [];
-    return apiGames
-      .filter(g => g && g.name && g.isEnabled !== false)
-      .map(g => ({ name: String(g.name ?? "") }));
-  }
-
-  function mergeUniqueByName(apiList, fallbackList) {
-    const map = new Map();
-    for (const g of apiList) {
-      const key = (g.name || "").trim().toLowerCase();
-      if (key) map.set(key, g);
-    }
-    for (const g of fallbackList) {
-      const key = (g.name || "").trim().toLowerCase();
-      if (key && !map.has(key)) map.set(key, g);
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  async function loadGameTypesAlways() {
-    renderGameOptions(gameSelMain, FALLBACK_GAMES);
-    renderGameOptions(gameSelEdit, FALLBACK_GAMES);
+  async function loadGameTypes() {
+    // No fake fallback IDs here — GameTypeId must exist in DB.
+    // If API fails, we keep select with only the placeholder.
+    if (gameSelMain) gameSelMain.innerHTML = `<option value="">Game Type (optional)</option>`;
+    if (gameSelEdit) gameSelEdit.innerHTML = `<option value="">Game Type (optional)</option>`;
 
     try {
-      const apiGames = await safeApi("/api/gametypes");
-      const normalized = normalizeApiGames(apiGames);
-      if (normalized.length > 0) {
-        const merged = mergeUniqueByName(normalized, FALLBACK_GAMES);
-        renderGameOptions(gameSelMain, merged);
-        renderGameOptions(gameSelEdit, merged);
-      }
+      const rows = await safeApi("/api/gametypes");
+      const list = Array.isArray(rows)
+        ? rows
+            .filter(x => x && x.id && x.name && x.isEnabled !== false)
+            .map(x => ({ id: x.id, name: x.name }))
+        : [];
+
+      renderGameOptions(gameSelMain, list, true);
+      renderGameOptions(gameSelEdit, list, true);
     } catch (e) {
-      console.warn("[staff] /api/gametypes failed, using fallback:", e);
+      console.warn("[staff] /api/gametypes failed:", e);
+      // keep placeholder only
     }
   }
 
@@ -207,7 +172,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function createCustomer() {
     const name = (cName?.value || "").trim();
-    const phone = (cPhone?.value || "").trim();
+    const phone = (cPhone?.value || "").trim(); // send "" if empty (DTO expects string)
 
     setMsg(createCustomerMsg, "");
 
@@ -221,7 +186,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       await safeApi("/api/customers", {
         method: "POST",
-        body: JSON.stringify({ name, phone: phone || null })
+        body: JSON.stringify({ name, phone: phone || "" })
       });
 
       setMsg(createCustomerMsg, "Customer created.", "ok");
@@ -238,36 +203,51 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ---- Transactions ----
+  function getTxEndpoint(kind) {
+    switch ((kind || "").toLowerCase()) {
+      case "deposit": return "/api/transactions/deposit";
+      case "withdrawal": return "/api/transactions/withdrawal";
+      case "bonus": return "/api/transactions/bonus";
+      default: return null;
+    }
+  }
+
   async function submitTx() {
     setMsg(txMsg, "");
 
     const kind = (txKind?.value || "").trim();
-    const customerId = (customerSelect?.value || "").trim();
-    const gameType = (gameSelMain?.value || "").trim();
+    const endpoint = getTxEndpoint(kind);
+
+    const customerId = Number((customerSelect?.value || "").trim());
     const bank = (bankType?.value || "").trim();
     const ref = (referenceNo?.value || "").trim();
     const amt = Number(amount?.value || 0);
     const note = (notes?.value || "").trim();
 
-    if (!kind) return setMsg(txMsg, "Transaction type is required.", "err");
-    if (!customerId) return setMsg(txMsg, "Please select a customer.", "err");
+    const gtRaw = (gameSelMain?.value || "").trim();
+    const gameTypeId = gtRaw ? Number(gtRaw) : null;
+
+    if (!endpoint) return setMsg(txMsg, "Invalid transaction type.", "err");
+    if (!Number.isFinite(customerId) || customerId <= 0) return setMsg(txMsg, "Please select a customer.", "err");
     if (!bank) return setMsg(txMsg, "Bank Type is required.", "err");
     if (!isFinite(amt) || amt <= 0) return setMsg(txMsg, "Amount must be greater than 0.", "err");
+    if (gtRaw && (!Number.isFinite(gameTypeId) || gameTypeId <= 0)) return setMsg(txMsg, "Invalid game type selected.", "err");
 
     btnSubmitTx && (btnSubmitTx.disabled = true);
 
     try {
-      await safeApi("/api/transactions", {
+      // Matches TransactionsController.CreateTxRequest:
+      // (CustomerId, Amount, Notes, CreatedAtUtc?, BankType, ReferenceNo, GameTypeId?)
+      await safeApi(endpoint, {
         method: "POST",
         body: JSON.stringify({
-          kind,
-          customerId: Number(customerId),
-          gameType: gameType || null,
-          bankType: bank,
-          referenceNo: ref || null,
+          customerId,
           amount: amt,
           notes: note || null,
-          createdAtUtc: readCreatedAtUtc()
+          createdAtUtc: readCreatedAtUtc(),
+          bankType: bank,
+          referenceNo: ref || null,
+          gameTypeId: gameTypeId
         })
       });
 
@@ -278,6 +258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (notes) notes.value = "";
       if (gameSelMain) gameSelMain.value = "";
 
+      // Refresh table if available
       if (typeof window.refreshAllTransactions === "function") {
         await window.refreshAllTransactions();
       }
@@ -297,6 +278,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (createdAtUtc) createdAtUtc.value = toPngDateTimeLocalValue(new Date());
 
   // ---- Initial loads ----
-  await loadGameTypesAlways();
+  await loadGameTypes();
   await loadCustomers();
 });
