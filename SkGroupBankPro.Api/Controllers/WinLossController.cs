@@ -1,8 +1,10 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SkGroupBankpro.Api.Data;
+using SkGroupBankpro.Api.Hubs;
 using SkGroupBankpro.Api.Models;
 
 namespace SkGroupBankpro.Api.Controllers
@@ -13,10 +15,12 @@ namespace SkGroupBankpro.Api.Controllers
     public sealed class WinLossController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IHubContext<DashboardHub> _hub;
 
-        public WinLossController(AppDbContext db)
+        public WinLossController(AppDbContext db, IHubContext<DashboardHub> hub)
         {
             _db = db;
+            _hub = hub;
         }
 
         private int CurrentUserId()
@@ -60,10 +64,63 @@ namespace SkGroupBankpro.Api.Controllers
             return DateTime.SpecifyKind(utcAnchor, DateTimeKind.Utc);
         }
 
-        private static decimal NetLoss(decimal win, decimal loss)
+        // ✅ Correct daily net loss:
+        //    NetLoss = max(0, SUM(Loss) - SUM(Win)) for that customer+game+PNG day.
+        private async Task RecomputeDailyWinLoss(int customerId, int gameTypeId, DateTime dayUtcAnchor)
         {
-            var nl = loss - win;
-            return decimal.Round(nl < 0 ? 0 : nl, 4);
+            dayUtcAnchor = DateTime.SpecifyKind(dayUtcAnchor, DateTimeKind.Utc);
+
+            var agg = await _db.WinLosses
+                .Where(x => x.CustomerId == customerId && x.GameTypeId == gameTypeId && x.DateUtc == dayUtcAnchor)
+                .GroupBy(x => 1)
+                .Select(g => new
+                {
+                    win = g.Sum(x => x.WinAmount),
+                    loss = g.Sum(x => x.LossAmount)
+                })
+                .FirstOrDefaultAsync();
+
+            var win = agg?.win ?? 0m;
+            var loss = agg?.loss ?? 0m;
+
+            var netLoss = loss - win;
+            if (netLoss < 0) netLoss = 0;
+            netLoss = decimal.Round(netLoss, 4);
+
+            var daily = await _db.DailyWinLosses.FirstOrDefaultAsync(d =>
+                d.CustomerId == customerId &&
+                d.GameTypeId == gameTypeId &&
+                d.DateUtc == dayUtcAnchor
+            );
+
+            var hasAny = await _db.WinLosses.AnyAsync(x =>
+                x.CustomerId == customerId && x.GameTypeId == gameTypeId && x.DateUtc == dayUtcAnchor
+            );
+
+            if (!hasAny)
+            {
+                if (daily != null)
+                    _db.DailyWinLosses.Remove(daily);
+                return;
+            }
+
+            if (daily == null)
+            {
+                daily = new DailyWinLoss
+                {
+                    CustomerId = customerId,
+                    GameTypeId = gameTypeId,
+                    DateUtc = dayUtcAnchor,
+                    Total = netLoss,
+                    NetLoss = netLoss
+                };
+                _db.DailyWinLosses.Add(daily);
+            }
+            else
+            {
+                daily.Total = netLoss;
+                daily.NetLoss = netLoss;
+            }
         }
 
         private async Task WriteAudit(string action, string entity, object details)
@@ -91,18 +148,13 @@ namespace SkGroupBankpro.Api.Controllers
             if (customer == null)
                 return NotFound("Customer not found");
 
-            var game = await _db.GameTypes.FirstOrDefaultAsync(x => x.Id == req.GameTypeId && x.IsEnabled);
-            if (game == null)
+            var gameOk = await _db.GameTypes.AnyAsync(x => x.Id == req.GameTypeId && x.IsEnabled);
+            if (!gameOk)
                 return BadRequest("Invalid or disabled game type");
 
             var utcMoment = EnsureUtc(req.DateUtc);
             var dateUtcAnchor = ToPngBusinessUtcAnchor(utcMoment);
 
-            var netLoss = NetLoss(req.WinAmount, req.LossAmount);
-
-            using var tx = await _db.Database.BeginTransactionAsync();
-
-            // 1️⃣ Save Win/Loss
             var wl = new WinLoss
             {
                 CustomerId = req.CustomerId,
@@ -113,65 +165,33 @@ namespace SkGroupBankpro.Api.Controllers
                 CreatedByUserId = CurrentUserId(),
                 CreatedAtUtc = DateTime.UtcNow
             };
+
+            using var tx = await _db.Database.BeginTransactionAsync();
+
             _db.WinLosses.Add(wl);
+            await _db.SaveChangesAsync();
 
-            // 2️⃣ Upsert DailyWinLoss (ACCUMULATE for the day)
-            var daily = await _db.DailyWinLosses.FirstOrDefaultAsync(x =>
-                x.CustomerId == req.CustomerId &&
-                x.GameTypeId == req.GameTypeId &&
-                x.DateUtc == dateUtcAnchor
-            );
-
-            if (daily == null)
-            {
-                daily = new DailyWinLoss
-                {
-                    CustomerId = req.CustomerId,
-                    GameTypeId = req.GameTypeId,
-                    DateUtc = dateUtcAnchor,
-                    Total = netLoss,
-                    NetLoss = netLoss
-                };
-                _db.DailyWinLosses.Add(daily);
-            }
-            else
-            {
-                daily.Total = decimal.Round(daily.Total + netLoss, 4);
-                daily.NetLoss = decimal.Round(daily.NetLoss + netLoss, 4);
-            }
+            await RecomputeDailyWinLoss(req.CustomerId, req.GameTypeId, dateUtcAnchor);
 
             await WriteAudit("CREATE", "WinLoss", new
-            {
-                wl.CustomerId,
-                wl.GameTypeId,
-                wl.WinAmount,
-                wl.LossAmount,
-                wl.DateUtc,
-                netLoss,
-                dailyWinLossId = daily.Id
-            });
-
-            await _db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            var tz = GetPngTimeZone();
-            var pngDate = TimeZoneInfo.ConvertTimeFromUtc(dateUtcAnchor, tz).Date;
-
-            return Ok(new
             {
                 wl.Id,
                 wl.CustomerId,
                 wl.GameTypeId,
                 wl.WinAmount,
                 wl.LossAmount,
-                datePng = pngDate.ToString("yyyy-MM-dd"),
-                dateUtcAnchor,
-                dailyWinLossId = daily.Id,
-                netLoss
+                wl.DateUtc
             });
+
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            await _hub.Clients.All.SendAsync("RebatesUpdated", new { entity = "winloss", action = "create" });
+            await _hub.Clients.All.SendAsync("DashboardUpdated", new { entity = "winloss", action = "create", id = wl.Id });
+
+            return Ok(new { created = true, id = wl.Id });
         }
 
-        // ✅ EDIT with audit + correct DailyWinLoss adjustments
         [HttpPatch("{id:int}")]
         [Authorize(Roles = "Admin,Finance,Staff")]
         public async Task<IActionResult> Edit(int id, [FromBody] EditWinLossRequest req)
@@ -198,61 +218,25 @@ namespace SkGroupBankpro.Api.Controllers
                 wl.DateUtc
             };
 
-            var oldNet = NetLoss(wl.WinAmount, wl.LossAmount);
+            var oldCustomerId = wl.CustomerId;
+            var oldGameTypeId = wl.GameTypeId;
             var oldAnchor = DateTime.SpecifyKind(wl.DateUtc, DateTimeKind.Utc);
 
             var utcMoment = EnsureUtc(req.DateUtc);
             var newAnchor = ToPngBusinessUtcAnchor(utcMoment);
-            var newNet = NetLoss(req.WinAmount, req.LossAmount);
 
             using var tx = await _db.Database.BeginTransactionAsync();
 
-            // 1) subtract from old Daily
-            var oldDaily = await _db.DailyWinLosses.FirstOrDefaultAsync(x =>
-                x.CustomerId == wl.CustomerId &&
-                x.GameTypeId == wl.GameTypeId &&
-                x.DateUtc == oldAnchor
-            );
-
-            if (oldDaily != null)
-            {
-                oldDaily.Total = decimal.Round(oldDaily.Total - oldNet, 4);
-                oldDaily.NetLoss = decimal.Round(oldDaily.NetLoss - oldNet, 4);
-                if (oldDaily.Total < 0) oldDaily.Total = 0;
-                if (oldDaily.NetLoss < 0) oldDaily.NetLoss = 0;
-            }
-
-            // 2) apply changes to WinLoss
             wl.CustomerId = req.CustomerId;
             wl.GameTypeId = req.GameTypeId;
             wl.WinAmount = decimal.Round(req.WinAmount, 4);
             wl.LossAmount = decimal.Round(req.LossAmount, 4);
             wl.DateUtc = newAnchor;
 
-            // 3) add to new Daily
-            var newDaily = await _db.DailyWinLosses.FirstOrDefaultAsync(x =>
-                x.CustomerId == wl.CustomerId &&
-                x.GameTypeId == wl.GameTypeId &&
-                x.DateUtc == newAnchor
-            );
+            await _db.SaveChangesAsync();
 
-            if (newDaily == null)
-            {
-                newDaily = new DailyWinLoss
-                {
-                    CustomerId = wl.CustomerId,
-                    GameTypeId = wl.GameTypeId,
-                    DateUtc = newAnchor,
-                    Total = newNet,
-                    NetLoss = newNet
-                };
-                _db.DailyWinLosses.Add(newDaily);
-            }
-            else
-            {
-                newDaily.Total = decimal.Round(newDaily.Total + newNet, 4);
-                newDaily.NetLoss = decimal.Round(newDaily.NetLoss + newNet, 4);
-            }
+            await RecomputeDailyWinLoss(oldCustomerId, oldGameTypeId, oldAnchor);
+            await RecomputeDailyWinLoss(wl.CustomerId, wl.GameTypeId, newAnchor);
 
             var after = new
             {
@@ -264,18 +248,13 @@ namespace SkGroupBankpro.Api.Controllers
                 wl.DateUtc
             };
 
-            await WriteAudit("EDIT", "WinLoss", new
-            {
-                before,
-                after,
-                oldNetLoss = oldNet,
-                newNetLoss = newNet,
-                oldDailyId = oldDaily?.Id,
-                newDailyId = newDaily.Id
-            });
+            await WriteAudit("EDIT", "WinLoss", new { before, after });
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            await _hub.Clients.All.SendAsync("RebatesUpdated", new { entity = "winloss", action = "edit", id = wl.Id });
+            await _hub.Clients.All.SendAsync("DashboardUpdated", new { entity = "winloss", action = "edit", id = wl.Id });
 
             return Ok(new { updated = true, id = wl.Id });
         }

@@ -60,14 +60,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Filters:
   // - Type=Rebate
   // - Status filter (approved/pending/rejected/all)
-  // - PNG Date filter using ReferenceNo prefix: REB-YYYYMMDD-
+  // - PNG Date filter using ReferenceNo prefix:
+  //   - Auto:   REB-YYYYMMDD-
+  //   - Manual: REBATE:YYYY-MM-DD:
   async function loadRebateTransactions() {
+    if (!rebateHistTbody) return;
+
     rebateHistTbody.innerHTML = "";
     setMsg(rebateListMsg, "", true);
 
     const statusFilter = (rebateHistFilter?.value || "approved").toLowerCase();
     const pngDate = (rebateListDate?.value || "").trim(); // YYYY-MM-DD or empty
-    const prefix = pngDate ? `REB-${yyyymmdd(pngDate)}-` : null;
 
     // load more transactions so rebates show up
     const rows = await apiFetch("/api/transactions?take=200");
@@ -75,8 +78,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let rebates = list.filter(x => String(x.typeName || "").toLowerCase() === "rebate");
 
-    if (prefix) {
-      rebates = rebates.filter(x => String(x.referenceNo || "").startsWith(prefix));
+    // ✅ accept both reference formats
+    const ref = (x) => String(x?.referenceNo || "");
+    const prefixA = pngDate ? `REB-${yyyymmdd(pngDate)}-` : null;   // auto
+    const prefixB = pngDate ? `REBATE:${pngDate}:` : null;         // manual
+
+    if (pngDate) {
+      rebates = rebates.filter(x => ref(x).startsWith(prefixA) || ref(x).startsWith(prefixB));
     }
 
     const filtered =
@@ -85,7 +93,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         : rebates.filter(x => String(x.statusName || "").toLowerCase() === statusFilter);
 
     const labelDate = pngDate ? `PNG ${pngDate}` : "All PNG dates";
-    setMsg(rebateListMsg, `Showing ${filtered.length} rebate(s) • ${labelDate} • Status: ${statusFilter.toUpperCase()}`, true);
+    setMsg(
+      rebateListMsg,
+      `Showing ${filtered.length} rebate(s) • ${labelDate} • Status: ${statusFilter.toUpperCase()}`,
+      true
+    );
 
     if (filtered.length === 0) {
       rebateHistTbody.innerHTML = `<tr><td colspan="8" class="mutedSmall">No rebate transactions found.</td></tr>`;
@@ -148,6 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (act === "reject") await rejectTx(id);
 
       await loadRebateTransactions();
+      await loadRebateReport(); // ✅ keep live report synced too
     } catch (err) {
       alert(String(err?.message || err));
     } finally {
@@ -166,6 +179,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // refresh with current filters
       await loadRebateTransactions();
+      await loadRebateReport(); // ✅ refresh live report too
     } catch (e) {
       rebateRunResult.textContent = String(e?.message || e);
     }
@@ -173,6 +187,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Report (still from rebates controller)
   async function loadRebateReport() {
+    if (!liveRebateTbody) return;
+
     const d = (liveRebateDate?.value || "").trim();
     if (!d) return;
 
@@ -214,9 +230,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   // wire events
   btnRunRebates?.addEventListener("click", runDailyRebates);
 
-  btnHistRefresh?.addEventListener("click", loadRebateTransactions);
-  rebateHistFilter?.addEventListener("change", loadRebateTransactions);
-  rebateListDate?.addEventListener("change", loadRebateTransactions);
+  btnHistRefresh?.addEventListener("click", async () => {
+    await loadRebateTransactions();
+    await loadRebateReport();
+  });
+
+  rebateHistFilter?.addEventListener("change", async () => {
+    await loadRebateTransactions();
+  });
+
+  rebateListDate?.addEventListener("change", async () => {
+    await loadRebateTransactions();
+  });
 
   btnRebateToday?.addEventListener("click", async () => {
     rebateListDate.value = todayPngDateString();
@@ -230,6 +255,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   btnLiveRefresh?.addEventListener("click", loadRebateReport);
 
+  liveRebateDate?.addEventListener("change", loadRebateReport);
+
   // init dates (PNG)
   const today = todayPngDateString();
   if (rebateDate) rebateDate.value = today;
@@ -242,9 +269,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadRebateTransactions();
   await loadRebateReport();
 
-  // realtime (keeps current filter)
+  // ✅ realtime (LIVE rebates + tx list)
   await startRealtime();
-  onDashboardUpdated(async () => {
+
+  const refreshAll = async () => {
     await loadRebateTransactions();
-  });
+    await loadRebateReport();
+  };
+
+  onDashboardUpdated(refreshAll);
+
+  if (typeof onRebatesUpdated === "function") {
+    onRebatesUpdated(refreshAll);
+  }
 });

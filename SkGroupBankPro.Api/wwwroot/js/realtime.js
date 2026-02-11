@@ -1,76 +1,58 @@
 // wwwroot/js/realtime.js
 (function () {
-  function getToken() {
-    return localStorage.getItem("token") || "";
+  let hub = null;
+
+  const dashHandlers = [];
+  const rebateHandlers = [];
+
+  function safeCall(list) {
+    for (const fn of list) {
+      try { fn(); } catch (e) { console.error(e); }
+    }
   }
 
-  function normalizeBase(url) {
-    return String(url || "").trim().replace(/\/+$/, "");
-  }
+  // Expose hooks to pages
+  window.onDashboardUpdated = function (cb) {
+    if (typeof cb === "function") dashHandlers.push(cb);
+  };
 
-  function getApiBase() {
-    // ✅ Priority:
-    // 1) localStorage override (optional)
-    // 2) window.API_BASE from api.js (recommended)
-    // 3) same-origin (if UI is served by the API)
-    // 4) localhost fallback
-
-    const ls = normalizeBase(localStorage.getItem("API_BASE"));
-    if (ls) return ls;
-
-    const wb = normalizeBase(window.API_BASE);
-    if (wb) return wb;
-
-    const origin = normalizeBase(location.origin);
-    if (origin && origin !== "null") return origin;
-
-    return "http://localhost:5000";
-  }
-
-  const callbacks = new Set();
-  let connection = null;
-
-  window.onDashboardUpdated = function onDashboardUpdated(cb) {
-    if (typeof cb !== "function") return () => {};
-    callbacks.add(cb);
-    return () => callbacks.delete(cb);
+  window.onRebatesUpdated = function (cb) {
+    if (typeof cb === "function") rebateHandlers.push(cb);
   };
 
   window.startRealtime = async function startRealtime() {
+    if (hub && hub.state === "Connected") return;
     if (!window.signalR) {
-      console.warn("[realtime] signalR client not loaded.");
+      console.warn("SignalR not loaded. Check your <script> tag.");
       return;
     }
-    if (connection) return;
 
-    const base = getApiBase();
-
-    connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${base}/hubs/dashboard`, {
-        accessTokenFactory: () => getToken()
-      })
+    hub = new signalR.HubConnectionBuilder()
+      .withUrl("/hubs/dashboard")
       .withAutomaticReconnect()
       .build();
 
-    connection.on("DashboardUpdated", (payload) => {
-      for (const cb of callbacks) {
-        try { cb(payload); } catch (e) { console.error(e); }
-      }
+    hub.on("DashboardUpdated", () => {
+      console.log("🔄 DashboardUpdated");
+      safeCall(dashHandlers);
     });
 
-    try {
-      await connection.start();
-      console.log("[realtime] connected:", `${base}/hubs/dashboard`);
-    } catch (e) {
-      console.warn("[realtime] connect failed:", e);
-      try { await connection.stop(); } catch {}
-      connection = null;
-    }
-  };
+    hub.on("RebatesUpdated", () => {
+      console.log("💸 RebatesUpdated");
+      safeCall(rebateHandlers);
+      safeCall(dashHandlers);
+    });
 
-  window.stopRealtime = async function stopRealtime() {
-    if (!connection) return;
-    try { await connection.stop(); } catch {}
-    connection = null;
+    hub.onreconnecting((err) => console.warn("⚠️ SignalR reconnecting...", err));
+    hub.onreconnected(() => console.log("✅ SignalR reconnected"));
+    hub.onclose((err) => console.warn("⚠️ SignalR closed", err));
+
+    try {
+      await hub.start();
+      console.log("✅ SignalR connected");
+    } catch (err) {
+      console.error("❌ SignalR start failed:", err);
+      setTimeout(() => window.startRealtime(), 2000);
+    }
   };
 })();

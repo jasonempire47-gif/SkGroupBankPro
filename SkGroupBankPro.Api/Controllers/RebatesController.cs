@@ -85,6 +85,8 @@ public sealed class RebatesController(AppDbContext db, IHubContext<DashboardHub>
         }
 
         await _db.SaveChangesAsync();
+
+        await _hub.Clients.All.SendAsync("RebatesUpdated", new { entity = "rebate", action = "run", date = businessDate.ToString("yyyy-MM-dd") });
         await _hub.Clients.All.SendAsync("DashboardUpdated", new { entity = "rebate", action = "run", date = businessDate.ToString("yyyy-MM-dd") });
 
         return Ok(new { businessDate = businessDate.ToString("yyyy-MM-dd"), created, skipped, rate = "5%" });
@@ -112,47 +114,19 @@ public sealed class RebatesController(AppDbContext db, IHubContext<DashboardHub>
                 gameTypeId = d.GameTypeId,
                 gameTypeName = g.Name,
                 netLoss = d.NetLoss,
+
+                expectedRebate = d.NetLoss > 0 ? decimal.Round(d.NetLoss * RebateRate, 4) : 0m,
                 rebate = d.NetLoss > 0 ? decimal.Round(d.NetLoss * RebateRate, 4) : 0m,
+
                 rate = "5%",
                 rateValue = RebateRate,
                 ratePercent = RebateRate * 100m,
                 dateUtc = d.DateUtc,
+
+                businessDatePng = UtcToPngDate(d.DateUtc).ToString("yyyy-MM-dd"),
                 datePng = UtcToPngDate(d.DateUtc).ToString("yyyy-MM-dd")
             }
         ).ToListAsync();
-
-        return Ok(data);
-    }
-
-    [HttpGet("history")]
-    public async Task<IActionResult> History([FromQuery] int take = 50, [FromQuery] string status = "all")
-    {
-        var q = _db.WalletTransactions.AsNoTracking()
-            .Where(t => t.Type == TxType.Rebate);
-
-        status = (status ?? "all").Trim().ToLowerInvariant();
-        if (status == "pending") q = q.Where(t => t.Status == TxStatus.Pending);
-        if (status == "approved") q = q.Where(t => t.Status == TxStatus.Approved);
-        if (status == "rejected") q = q.Where(t => t.Status == TxStatus.Rejected);
-
-        var data = await (
-            from t in q
-            join c in _db.Customers.AsNoTracking() on t.CustomerId equals c.Id
-            join g in _db.GameTypes.AsNoTracking() on t.GameTypeId equals g.Id into gj
-            from g in gj.DefaultIfEmpty()
-            orderby t.CreatedAtUtc descending
-            select new
-            {
-                id = t.Id,
-                customerName = c.Name,
-                gameTypeName = g != null ? g.Name : null,
-                amount = t.Amount,
-                status = t.Status.ToString(),
-                referenceNo = t.ReferenceNo,
-                notes = t.Notes,
-                createdAtUtc = t.CreatedAtUtc
-            }
-        ).Take(Math.Clamp(take, 1, 200)).ToListAsync();
 
         return Ok(data);
     }
@@ -170,6 +144,7 @@ public sealed class RebatesController(AppDbContext db, IHubContext<DashboardHub>
         tx.Status = TxStatus.Approved;
         await _db.SaveChangesAsync();
 
+        await _hub.Clients.All.SendAsync("RebatesUpdated", new { entity = "rebate", action = "approved", id });
         await _hub.Clients.All.SendAsync("DashboardUpdated", new { entity = "rebate", action = "approved", id });
 
         return Ok(tx);
@@ -197,6 +172,7 @@ public sealed class RebatesController(AppDbContext db, IHubContext<DashboardHub>
 
         await _db.SaveChangesAsync();
 
+        await _hub.Clients.All.SendAsync("RebatesUpdated", new { entity = "rebate", action = "rejected", id });
         await _hub.Clients.All.SendAsync("DashboardUpdated", new { entity = "rebate", action = "rejected", id });
 
         return Ok(tx);
