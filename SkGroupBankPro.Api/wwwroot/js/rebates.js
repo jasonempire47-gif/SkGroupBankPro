@@ -72,8 +72,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusFilter = (rebateHistFilter?.value || "approved").toLowerCase();
     const pngDate = (rebateListDate?.value || "").trim(); // YYYY-MM-DD or empty
 
-    // load more transactions so rebates show up
-    const rows = await apiFetch("/api/transactions?take=200");
+    // ✅ FIX: use /list to avoid Swagger route conflicts
+    const rows = await apiFetch("/api/transactions/list?take=200");
     const list = Array.isArray(rows) ? rows : [];
 
     let rebates = list.filter(x => String(x.typeName || "").toLowerCase() === "rebate");
@@ -124,7 +124,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           <td class="right">${escapeHtml(fmt2(r.amount))}</td>
           <td>${escapeHtml(status)}</td>
           <td>${escapeHtml(r.referenceNo || "")}</td>
-          <td>${escapeHtml(fmtDate(r.createdAt))}</td>
+          <!-- ✅ FIX: createdAtUtc/createdAtPng (not createdAt) -->
+          <td>${escapeHtml(r.createdAtPng || fmtDate(r.createdAtUtc))}</td>
           <td style="display:flex; gap:8px; justify-content:flex-end; align-items:center;">
             ${actions}
           </td>

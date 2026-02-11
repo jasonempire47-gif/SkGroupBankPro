@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SkGroupBankpro.Api.Data;
-using SkGroupBankpro.Api.Models;
 
 namespace SkGroupBankpro.Api.Controllers;
 
@@ -36,15 +35,10 @@ public sealed class TransactionQueryController(AppDbContext db) : ControllerBase
         return png.ToString("yyyy-MM-dd HH:mm:ss");
     }
 
-    /// <summary>
-    /// ✅ Backward-compatible endpoint for UI scripts that call:
-    /// GET /api/transactions?take=200&q=
-    ///
-    /// Returns a plain list (NOT paginated object).
-    /// This is what your rebates.js expects.
-    /// </summary>
-    [HttpGet]
-    public async Task<IActionResult> GetTake(
+    /// ✅ List endpoint for scripts (NO CONFLICT with other controllers)
+    /// GET /api/transactions/list?take=200&q=
+    [HttpGet("list")]
+    public async Task<IActionResult> List(
         [FromQuery] int take = 100,
         [FromQuery] string? q = null)
     {
@@ -73,7 +67,6 @@ public sealed class TransactionQueryController(AppDbContext db) : ControllerBase
             );
         }
 
-        // newest first
         var items = await query
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(take)
@@ -103,15 +96,11 @@ public sealed class TransactionQueryController(AppDbContext db) : ControllerBase
             })
             .ToListAsync();
 
-        // ✅ Returns array (rebates.js expects array)
         return Ok(items);
     }
 
-    /// <summary>
-    /// Paginated list for dashboard UI:
-    /// GET /api/transactions/all?page=1&pageSize=25&q=
-    /// Returns { page, pageSize, total, items }
-    /// </summary>
+    // Existing paginated endpoint:
+    // GET /api/transactions/all?page=1&pageSize=25&q=
     [HttpGet("all")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -176,12 +165,6 @@ public sealed class TransactionQueryController(AppDbContext db) : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(new
-        {
-            page,
-            pageSize,
-            total,
-            items
-        });
+        return Ok(new { page, pageSize, total, items });
     }
 }
