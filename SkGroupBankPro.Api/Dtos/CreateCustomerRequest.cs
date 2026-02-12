@@ -19,4 +19,5 @@ namespace SkGroupBankpro.Api.Dtos
     public sealed record CreateCustomerRequest(string Name, string Phone);
 
     public sealed record UpdateCustomerStatusRequest(CustomerStatus Status);
+
 }

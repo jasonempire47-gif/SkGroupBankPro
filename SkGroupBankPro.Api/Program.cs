@@ -55,8 +55,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-/* ---------------- DATABASE ---------------- */
+/* ---------------- DATABASE (MAIN) ---------------- */
 builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
+
+/* ---------------- DATABASE (EVENTS) ---------------- */
+/* Uses the same SQLite file by default (app.db), but separate tables.
+   NOT connected to your existing Customers / Transactions. */
+builder.Services.AddDbContext<EventsDbContext>(opt =>
     opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
@@ -70,7 +77,7 @@ builder.Services.AddSignalR();
 // ✅ Auto rebates background service (daily rebate cron)
 builder.Services.AddHostedService<AutoRebateService>();
 
-// ✅ NEW: Auto-create DailyWinLoss from transactions (cashflow proxy)
+// ✅ Auto-create DailyWinLoss from transactions (cashflow proxy)
 builder.Services.AddHostedService<TransactionWinLossSyncService>();
 
 /* ---------------- JWT ---------------- */
@@ -161,13 +168,15 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-/* ---------------- SEED + FIX ADMIN PASSWORD ---------------- */
+/* ---------------- SEED + ENSURE DB ---------------- */
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var eventsDb = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<PasswordHasher>();
 
     await db.Database.EnsureCreatedAsync();
+    await eventsDb.Database.EnsureCreatedAsync();
 
     // ✅ Cleanup bad DailyWinLoss records
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -209,7 +218,6 @@ using (var scope = app.Services.CreateScope())
             new SkGroupBankpro.Api.Models.GameType { Name = "Joker123", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "MegaH5", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow }
         );
-
         await db.SaveChangesAsync();
     }
 }
