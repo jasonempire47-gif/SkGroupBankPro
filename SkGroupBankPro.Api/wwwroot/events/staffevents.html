@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Staff Events Control</title>
+
+  <link rel="stylesheet" href="./events.css" />
+  <script defer src="./js/staffevents.js"></script>
+</head>
+
+<body class="liveBody">
+
+  <header class="topBar">
+    <div class="brandRow">
+      <img class="brandLogo" src="./assets/eventlogo.png" alt="Event Logo" />
+      <div class="brandTitle">Staff Event Control</div>
+    </div>
+  </header>
+
+  <main class="liveMain" style="justify-content:flex-start;">
+    <div class="liveBox" style="max-width:740px;">
+      <div class="labelSmall">Prize</div>
+      <input id="prizeInput" style="width:100%;padding:12px;font-size:18px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:#fff;margin-top:10px;" placeholder="e.g. 🎁 iPhone 15">
+
+      <div style="height:18px;"></div>
+
+      <div class="labelSmall">Winner Name</div>
+      <input id="winnerInput" style="width:100%;padding:12px;font-size:18px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:#fff;margin-top:10px;" placeholder="e.g. Jason Empire">
+
+      <div style="height:22px;"></div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn" id="btnPushPrize">Push Prize</button>
+        <button class="btn" id="btnPushWinner">Announce Winner</button>
+        <button class="btn" id="btnResetLive">Reset</button>
+        <a class="btn" href="./customerlivepreview.html" target="_blank" style="text-decoration:none;display:inline-block;">Open Live Preview</a>
+      </div>
+
+      <div id="staffMsg" class="muted" style="margin-top:14px;"></div>
+    </div>
+  </main>
+
+</body>
+</html>

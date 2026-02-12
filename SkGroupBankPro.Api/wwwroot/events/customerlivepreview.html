@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Customer Live Preview</title>
+
+  <link rel="stylesheet" href="./events.css" />
+  <script defer src="./js/customerlivepreview.js"></script>
+</head>
+
+<body class="liveBody">
+
+  <!-- TOP CONTROLS -->
+  <div class="topControls">
+    <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+    <button class="btn" onclick="location.reload()">Refresh</button>
+  </div>
+
+  <!-- CENTER LOGO -->
+  <div class="centerLogo">
+    <img src="./assets/eventlogo.png" alt="Millionaires Group Concierge" />
+  </div>
+
+  <!-- TITLE -->
+  
+  <!-- 🎡 SPINNING WHEEL -->
+  <div class="wheelWrapper">
+    <div class="wheelPointer"></div>
+
+    <div id="wheel" class="wheel">
+      <div class="wheelHub">
+        <div class="wheelText">SPIN</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT BOX -->
+  <div class="resultWrap">
+    <div class="liveBox">
+      <div class="labelSmall">PRIZE</div>
+      <div id="livePrize" class="livePrize">—</div>
+
+      <div class="divider"></div>
+
+      <div class="labelSmall">WINNER</div>
+      <div id="liveWinner" class="liveWinner">—</div>
+    </div>
+  </div>
+
+  <footer class="liveFooter">Live Event Display</footer>
+
+</body>
+</html>
