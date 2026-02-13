@@ -1,147 +1,82 @@
 (() => {
-  const API_GET_PATH = "/api/events/live-state";
-  const HUB_PATH = "/hubs/liveevents";
+  const POLL_MS = 800;
   const $ = (id) => document.getElementById(id);
 
-  function setText(id, v) {
+  function setText(id, value) {
     const el = $(id);
-    if (el) el.textContent = (v == null || v === "") ? "—" : String(v);
+    if (el) el.textContent = (value == null || value === "") ? "—" : String(value);
   }
 
-  function absUrl(path) {
-    const base = (window.API_BASE || "").replace(/\/+$/, "");
-    return `${base}${path}`;
-  }
-
-  // ---------- labels inside wheel ----------
-  function injectWheelLabelCssOnce() {
-    if (document.getElementById("wheelLabelCss")) return;
-
-    const style = document.createElement("style");
-    style.id = "wheelLabelCss";
-    style.textContent = `
-      #wheel { position: relative; }
-      #wheel .wheelLabels { position:absolute; inset:0; pointer-events:none; }
-      #wheel .wheelLabel{
-        position:absolute;
-        left:50%; top:50%;
-        transform-origin: 0 0;
-        font-weight: 800;
-        font-size: 14px;
-        color: rgba(255,255,255,.92);
-        text-shadow: 0 2px 10px rgba(0,0,0,.85);
-        white-space: nowrap;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  function ensureLabelsLayer() {
-    const wheel = $("wheel");
-    if (!wheel) return null;
-
-    let layer = wheel.querySelector(".wheelLabels");
-    if (!layer) {
-      layer = document.createElement("div");
-      layer.className = "wheelLabels";
-      wheel.appendChild(layer);
-    }
-    return layer;
-  }
-
-  function renderCustomers(customers) {
+  function spinWheel(ms, minRot) {
     const wheel = $("wheel");
     if (!wheel) return;
 
-    injectWheelLabelCssOnce();
-    const layer = ensureLabelsLayer();
-    if (!layer) return;
-
-    layer.innerHTML = "";
-
-    const names = Array.isArray(customers) ? customers.map(x => String(x || "").trim()).filter(Boolean) : [];
-    const n = names.length;
-    if (!n) return;
-
-    const radius = 155;
-
-    for (let i = 0; i < n; i++) {
-      const angle = (360 / n) * i;
-      const el = document.createElement("div");
-      el.className = "wheelLabel";
-      el.style.transform = `rotate(${angle}deg) translate(${radius}px, -10px) rotate(90deg)`;
-      el.textContent = names[i];
-      layer.appendChild(el);
-    }
-  }
-
-  function spinToWinner(customers, winnerName, spinMs, extraTurns) {
-    const wheel = $("wheel");
-    if (!wheel) return;
-
-    const names = Array.isArray(customers) ? customers.map(x => String(x || "").trim()).filter(Boolean) : [];
-    const n = names.length;
-    if (!n || !winnerName) return;
-
-    const norm = (s) => String(s || "").trim().toLowerCase();
-    const idx = names.findIndex(x => norm(x) === norm(winnerName));
-    if (idx < 0) return;
-
-    const seg = 360 / n;
-    const target = 360 - (idx * seg + seg / 2);
+    const extra = Math.floor(Math.random() * 360);
+    const turns = Math.max(3, Number(minRot || 5));
+    const deg = (turns * 360) + extra;
 
     const current = wheel.dataset.rot ? Number(wheel.dataset.rot) : 0;
-    const turns = Math.max(3, Number(extraTurns || 6));
-
-    const baseTurns = (Math.floor(current / 360) + turns) * 360;
-    const nextRot = baseTurns + target;
-
+    const nextRot = current + deg;
     wheel.dataset.rot = String(nextRot);
-    wheel.style.transition = `transform ${spinMs}ms cubic-bezier(0.10, 0.80, 0.10, 1)`;
+
+    wheel.style.transition = `transform ${ms}ms cubic-bezier(0.10, 0.80, 0.10, 1)`;
     wheel.style.transform = `rotate(${nextRot}deg)`;
   }
 
+  // ✅ IMPORTANT: staff page sends spinToken, not actionToken
   let lastSpinToken = null;
 
-  function applyState(state) {
-    state = state || {};
+  function applyState(s) {
+    s = s || {};
 
-    setText("livePrize", state.winningPrize || "—");
-    setText("liveWinner", state.winnerName || "—");
-    renderCustomers(state.customers || []);
+    // Always update text
+    setText("livePrize", s.winningPrize || "—");
+    setText("liveWinner", s.winnerName || "—");
 
-    if (state.spinNow && state.spinToken && state.spinToken !== lastSpinToken) {
-      lastSpinToken = state.spinToken;
-      const ms = Math.max(1000, Number(state.spinMs || 5000));
-      const turns = Math.max(3, Number(state.minRot || 6));
-      spinToWinner(state.customers || [], state.winnerName || "", ms, turns);
+    // Optional: hide result box until revealWinner true
+    // const box = document.querySelector(".resultWrap");
+    // if (box) box.style.opacity = s.revealWinner ? "1" : "0";
+
+    // Spin only when spinToken changes
+    if (s.spinNow && s.spinToken && s.spinToken !== lastSpinToken) {
+      lastSpinToken = s.spinToken;
+
+      const ms = Math.max(1000, Number(s.spinMs || 5000));
+      const minRot = Math.max(3, Number(s.minRot || 5));
+
+      spinWheel(ms, minRot);
     }
   }
 
-  async function fetchStateOnce() {
-    // Use apiFetch if present, otherwise raw fetch
-    if (typeof window.apiFetch === "function") {
-      const data = await window.apiFetch(API_GET_PATH, { cache: "no-store" });
-      return (data && data.state) ? data.state : {};
-    }
+  async function fetchState() {
+    // apiFetch comes from /js/api.js loaded in HTML
+    const data = await apiFetch("/api/events/live-state", { cache: "no-store" });
+    return (data && data.state) ? data.state : {};
+  }
 
-    const res = await fetch(absUrl(API_GET_PATH), { cache: "no-store" });
-    if (!res.ok) throw new Error(`Load failed (${res.status})`);
-    const data = await res.json();
-    return data.state || {};
+  async function pollLoop() {
+    try {
+      const s = await fetchState();
+      applyState(s);
+    } catch {
+      // ignore; SignalR will handle if available
+    }
+    setTimeout(pollLoop, POLL_MS);
   }
 
   async function startSignalR() {
-    if (!window.signalR) return false;
+    if (!window.signalR || !window.API_BASE) return false;
 
-    const hubUrl = absUrl(HUB_PATH);
+    const hubUrl = `${window.API_BASE}/hubs/liveevents`;
 
     const conn = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl) // anonymous is OK
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .build();
 
-    conn.on("liveStateUpdated", (state) => applyState(state || {}));
+    conn.on("liveStateUpdated", (state) => {
+      applyState(state);
+    });
 
     try {
       await conn.start();
@@ -151,27 +86,20 @@
     }
   }
 
-  function startPollingFallback() {
-    setInterval(async () => {
-      try {
-        const s = await fetchStateOnce();
-        applyState(s);
-      } catch { }
-    }, 1200);
-  }
-
   document.addEventListener("DOMContentLoaded", async () => {
-    try {
-      const s = await fetchStateOnce();
-      applyState(s);
-    } catch { }
+    // Always poll (fallback)
+    pollLoop();
 
-    const ok = await startSignalR();
-    if (!ok) startPollingFallback();
+    // Try realtime
+    await startSignalR();
   });
 
+  // Used by your HTML buttons
   window.toggleFullscreen = function toggleFullscreen() {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-    else document.exitFullscreen?.();
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
   };
 })();
