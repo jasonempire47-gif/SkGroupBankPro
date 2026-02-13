@@ -6,25 +6,28 @@
   <title>Customer Live Preview</title>
 
   <link rel="stylesheet" href="./events.css" />
+
+  <!-- ✅ SignalR client -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+  <!-- ✅ IMPORTANT: load API_BASE + apiFetch (absolute Render URL) -->
+  <script src="/js/api.js"></script>
+
+  <!-- ✅ Your preview logic -->
   <script defer src="./js/customerlivepreview.js"></script>
 </head>
 
 <body class="liveBody">
 
-  <!-- TOP CONTROLS -->
   <div class="topControls">
     <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
     <button class="btn" onclick="location.reload()">Refresh</button>
   </div>
 
-  <!-- CENTER LOGO -->
   <div class="centerLogo">
     <img src="./assets/eventlogo.png" alt="Millionaires Group Concierge" />
   </div>
 
-  <!-- TITLE -->
-  
-  <!-- 🎡 SPINNING WHEEL -->
   <div class="wheelWrapper">
     <div class="wheelPointer"></div>
 
@@ -35,7 +38,6 @@
     </div>
   </div>
 
-  <!-- RESULT BOX -->
   <div class="resultWrap">
     <div class="liveBox">
       <div class="labelSmall">PRIZE</div>

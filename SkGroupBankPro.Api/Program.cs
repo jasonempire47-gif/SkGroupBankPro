@@ -60,13 +60,6 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-/* ---------------- DATABASE (EVENTS) ---------------- */
-/* Uses the same SQLite file by default (app.db), but separate tables.
-   NOT connected to your existing Customers / Transactions. */
-builder.Services.AddDbContext<EventsDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
-
 /* ---------------- SERVICES ---------------- */
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordHasher>();
@@ -110,7 +103,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var path = context.HttpContext.Request.Path;
                 var accessToken = context.Request.Query["access_token"];
 
+                // Existing dashboard hub
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/dashboard"))
+                {
+                    context.Token = accessToken!;
+                }
+
+                // ✅ NEW: live events hub (optional auth)
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/liveevents"))
                 {
                     context.Token = accessToken!;
                 }
@@ -132,6 +132,8 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
+            // ✅ REQUIRED for SignalR (WebSockets/long polling with credentials)
+            .AllowCredentials()
     );
 });
 
@@ -166,17 +168,20 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Existing hub
 app.MapHub<DashboardHub>("/hubs/dashboard");
+
+// ✅ NEW: Live events hub for wheel preview
+app.MapHub<LiveEventsHub>("/hubs/liveevents");
 
 /* ---------------- SEED + ENSURE DB ---------------- */
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var eventsDb = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<PasswordHasher>();
 
     await db.Database.EnsureCreatedAsync();
-    await eventsDb.Database.EnsureCreatedAsync();
 
     // ✅ Cleanup bad DailyWinLoss records
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);

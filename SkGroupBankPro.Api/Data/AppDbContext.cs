@@ -17,6 +17,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<WinLoss> WinLosses => Set<WinLoss>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    // ✅ NEW: Live event wheel state (single-row JSON)
+    public DbSet<LiveEventState> LiveEventStates => Set<LiveEventState>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -72,5 +75,8 @@ public sealed class AppDbContext : DbContext
         modelBuilder.Entity<AuditLog>().HasIndex(x => x.CreatedAtUtc);
         modelBuilder.Entity<AuditLog>().HasIndex(x => x.UserId);
         modelBuilder.Entity<AuditLog>().HasIndex(x => x.Entity);
+
+        // ✅ optional: tiny index for single-row state (not required, but harmless)
+        modelBuilder.Entity<LiveEventState>().HasIndex(x => x.UpdatedAtUtc);
     }
 }
