@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lucky Wheel</title>
+
+  <!-- ✅ same folder -->
+  <link rel="stylesheet" href="./luckywheel.css" />
+</head>
+
+<body class="wheelBody">
+
+  <header class="topBar">
+    <div class="brand">
+      <!-- Option A: use root logo -->
+      <img class="brandLogo" src="../assets/logo.png" alt="Logo" />
+      <!-- Option B: copy logo into luckywheel/assets and use:
+      <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+      -->
+      <div class="brandTxt">
+        <div class="brandName">Millionaires Group</div>
+        <div class="brandSub">Lucky Wheel • Events & Promotions</div>
+      </div>
+    </div>
+
+    <div class="topBtns">
+      <button class="btn ghost" id="btnReset">Reset</button>
+      <button class="btn" id="btnExport">Export Winners</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- LEFT -->
+    <aside class="panel">
+      <div class="panelHead">
+        <div class="panelTitle">Setup</div>
+        <div class="panelHint">Paste names & prizes • 1 per line</div>
+      </div>
+
+      <div class="field">
+        <label>Customer Names</label>
+        <textarea id="namesBox" placeholder="Jason Empire&#10;Maria Santos&#10;John Tan"></textarea>
+        <div class="row">
+          <button class="btn mini" id="btnShuffleNames">Shuffle</button>
+          <button class="btn mini ghost" id="btnClearNames">Clear</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Prizes</label>
+        <textarea id="prizesBox" placeholder="Free Spin x10&#10;$5 Bonus&#10;VIP Upgrade"></textarea>
+        <div class="row">
+          <button class="btn mini" id="btnLoadSample">Load Sample</button>
+          <button class="btn mini ghost" id="btnClearPrizes">Clear</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Settings</label>
+        <div class="grid2">
+          <div class="miniField">
+            <span>Spin Duration (sec)</span>
+            <input id="spinSeconds" type="number" min="2" max="20" step="1" value="6">
+          </div>
+          <div class="miniField">
+            <span>Min Turns</span>
+            <input id="minTurns" type="number" min="3" max="20" step="1" value="7">
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="miniField">
+            <span>Winner Mode</span>
+            <select id="winnerMode">
+              <option value="remove">Remove name after win</option>
+              <option value="keep">Keep names (repeat allowed)</option>
+            </select>
+          </div>
+          <div class="miniField">
+            <span>Prize Mode</span>
+            <select id="prizeMode">
+              <option value="wheel">Pick prize from wheel</option>
+              <option value="random">Random prize list</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        Tip: If <b>Prize Mode = Wheel</b>, the wheel segments come from your <b>Prizes</b> list.
+      </div>
+    </aside>
+
+    <!-- CENTER -->
+    <section class="stage">
+      <div class="wheelWrap">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheelCanvas" width="900" height="900"></canvas>
+
+        <button class="spinBtn" id="btnSpin">
+          <span class="spinGlow" aria-hidden="true"></span>
+          <span class="spinTxt">SPIN</span>
+        </button>
+      </div>
+
+      <div class="resultBar">
+        <div class="resultItem">
+          <div class="k">Winner</div>
+          <div class="v" id="liveWinner">—</div>
+        </div>
+        <div class="resultItem">
+          <div class="k">Prize</div>
+          <div class="v" id="livePrize">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT -->
+    <aside class="panel">
+      <div class="panelHead">
+        <div class="panelTitle">Winner List</div>
+        <div class="panelHint">Auto-saved locally</div>
+      </div>
+
+      <div class="history" id="historyList"></div>
+
+      <div class="row">
+        <button class="btn mini ghost" id="btnClearHistory">Clear History</button>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ✅ IMPORTANT: relative to luckywheel.html -->
+  <script src="./js/luckywheel.js"></script>
+</body>
+</html>

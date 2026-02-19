@@ -1,3 +1,5 @@
+// Program.cs (FULL REPLACEMENT)
+// ✅ SkGroup BankPro API + K3o58k Wallet Provider Integration
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -7,11 +9,16 @@ using SkGroupBankpro.Api.Data;
 using SkGroupBankpro.Api.Hubs;
 using SkGroupBankpro.Api.Services;
 using SkGroupBankpro.Api.Utilities;
+using SkGroupBankpro.Api.Services.Wallet;
+using SkGroupBankpro.Api.Services.WalletProviders.K3o58k;
 using System.Text;
+
+// ✅ Lucky Wheel Service namespace (if WheelService is in SkGroupBankpro.Api root)
+using SkGroupBankpro.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Controllers + DateOnly/TimeOnly JSON support
+/* ---------------- CONTROLLERS ---------------- */
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -64,6 +71,9 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordHasher>();
 
+// ✅ Lucky Wheel (server-controlled)
+builder.Services.AddSingleton<WheelService>();
+
 // ✅ SignalR realtime
 builder.Services.AddSignalR();
 
@@ -72,6 +82,27 @@ builder.Services.AddHostedService<AutoRebateService>();
 
 // ✅ Auto-create DailyWinLoss from transactions (cashflow proxy)
 builder.Services.AddHostedService<TransactionWinLossSyncService>();
+
+/* ---------------- ✅ K3O58K WALLET PROVIDER ---------------- */
+// appsettings.json:
+// "WalletProviders": { "K3o58k": { "BaseUrl": "https://k3o58k.com/api/v1/index.php", "AccessId": "", "AccessToken": "", "TimeoutSeconds": 20 } }
+// Render env vars:
+// WalletProviders__K3o58k__AccessId
+// WalletProviders__K3o58k__AccessToken
+builder.Services.Configure<K3o58kOptions>(builder.Configuration.GetSection("WalletProviders:K3o58k"));
+
+builder.Services.AddHttpClient<K3o58kClient>((sp, http) =>
+{
+    var opt = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<K3o58kOptions>>().Value;
+
+    if (string.IsNullOrWhiteSpace(opt.BaseUrl))
+        throw new InvalidOperationException("WalletProviders:K3o58k:BaseUrl is missing.");
+
+    http.BaseAddress = new Uri(opt.BaseUrl); // points to .../index.php
+    http.Timeout = TimeSpan.FromSeconds(Math.Clamp(opt.TimeoutSeconds, 5, 60));
+});
+
+builder.Services.AddScoped<IWalletService, WalletService>();
 
 /* ---------------- JWT ---------------- */
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -105,15 +136,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 // Existing dashboard hub
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/dashboard"))
-                {
                     context.Token = accessToken!;
-                }
 
-                // ✅ NEW: live events hub (optional auth)
+                // ✅ live events hub
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/liveevents"))
-                {
                     context.Token = accessToken!;
-                }
 
                 return Task.CompletedTask;
             }
@@ -132,7 +159,6 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            // ✅ REQUIRED for SignalR (WebSockets/long polling with credentials)
             .AllowCredentials()
     );
 });
@@ -157,11 +183,12 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseHttpsRedirection();
+
+// ✅ Needed for wheel UI files under wwwroot/events/*
 app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ CORS MUST be between UseRouting and Auth
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
@@ -172,7 +199,7 @@ app.MapControllers();
 // Existing hub
 app.MapHub<DashboardHub>("/hubs/dashboard");
 
-// ✅ NEW: Live events hub for wheel preview
+// ✅ Live events hub
 app.MapHub<LiveEventsHub>("/hubs/liveevents");
 
 /* ---------------- SEED + ENSURE DB ---------------- */
