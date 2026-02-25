@@ -85,7 +85,7 @@ builder.Services.AddHostedService<TransactionWinLossSyncService>();
 
 /* ---------------- ✅ K3O58K WALLET PROVIDER ---------------- */
 // appsettings.json:
-// "WalletProviders": { "K3o58k": { "BaseUrl": "https://k3o58k.com/api/v1/index.php", "AccessId": "", "AccessToken": "", "TimeoutSeconds": 20 } }
+// "WalletProviders": { "K3o58k": { "BaseUrl": "https://k3o58k.com/api/v1/", "AccessId": "", "AccessToken": "", "TimeoutSeconds": 20 } }
 // Render env vars:
 // WalletProviders__K3o58k__AccessId
 // WalletProviders__K3o58k__AccessToken
@@ -98,7 +98,9 @@ builder.Services.AddHttpClient<K3o58kClient>((sp, http) =>
     if (string.IsNullOrWhiteSpace(opt.BaseUrl))
         throw new InvalidOperationException("WalletProviders:K3o58k:BaseUrl is missing.");
 
-    http.BaseAddress = new Uri(opt.BaseUrl); // points to .../index.php
+    // ✅ IMPORTANT: BaseUrl must be folder root, NOT index.php
+    // Example: https://k3o58k.com/api/v1/
+    http.BaseAddress = new Uri(opt.BaseUrl);
     http.Timeout = TimeSpan.FromSeconds(Math.Clamp(opt.TimeoutSeconds, 5, 60));
 });
 
@@ -246,7 +248,7 @@ using (var scope = app.Services.CreateScope())
             new SkGroupBankpro.Api.Models.GameType { Name = "918Kaya", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "Mega888", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "Live22", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
-            new SkGroupBankpro.Api.Models.GameType { Name = "Pussy888", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
+            new SkGroupBankpro.Api.Models.GameType { Name = "Live22", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "Joker123", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "MegaH5", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow }
         );

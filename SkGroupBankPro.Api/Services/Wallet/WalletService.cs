@@ -13,21 +13,18 @@ public sealed class WalletService : IWalletService
 
     public async Task<object> GetAllUsersAsync(CancellationToken ct = default)
     {
-        var res = await _client.CallAsync<object>(
-            "users/getAllUsers",
-            new { },
-            ct);
+        var res = await _client.CallAsync<object>("/users/getAllUsers", new { }, ct);
 
         if (!res.IsSuccess())
-            throw new Exception(res.message ?? "Provider error");
+            return new { ok = false, message = res.message ?? "Provider error", raw = res.raw };
 
-        return res.data ?? res.result ?? new { };
+        return new { ok = true, data = res.data ?? res.result ?? new { } };
     }
 
     public async Task<object> GetAllTransactionsAsync(DateTime sDateUtc, DateTime eDateUtc, CancellationToken ct = default)
     {
         var res = await _client.CallAsync<object>(
-            "transactions/getAllTransactions",
+            "/transactions/getAllTransactions",
             new
             {
                 sDate = sDateUtc.ToString("yyyy-MM-dd"),
@@ -36,15 +33,15 @@ public sealed class WalletService : IWalletService
             ct);
 
         if (!res.IsSuccess())
-            throw new Exception(res.message ?? "Provider error");
+            return new { ok = false, message = res.message ?? "Provider error", raw = res.raw };
 
-        return res.data ?? res.result ?? new { };
+        return new { ok = true, data = res.data ?? res.result ?? new { } };
     }
 
     public async Task<object> SetScoreAsync(string username, decimal amount, string reason, CancellationToken ct = default)
     {
         var res = await _client.CallAsync<object>(
-            "member/setScore",
+            "/member/setScore",
             new
             {
                 username,
@@ -54,8 +51,8 @@ public sealed class WalletService : IWalletService
             ct);
 
         if (!res.IsSuccess())
-            throw new Exception(res.message ?? "Provider error");
+            return new { ok = false, message = res.message ?? "Provider error", raw = res.raw };
 
-        return res.data ?? res.result ?? new { };
+        return new { ok = true, data = res.data ?? res.result ?? new { } };
     }
 }

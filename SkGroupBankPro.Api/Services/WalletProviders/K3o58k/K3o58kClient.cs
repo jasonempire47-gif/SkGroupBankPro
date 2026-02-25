@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace SkGroupBankpro.Api.Services.WalletProviders.K3o58k;
@@ -21,36 +21,57 @@ public sealed class K3o58kClient
     {
         if (string.IsNullOrWhiteSpace(_opt.AccessId) ||
             string.IsNullOrWhiteSpace(_opt.AccessToken))
-            throw new InvalidOperationException("Wallet credentials not configured.");
-
-        var body = new Dictionary<string, object?>
         {
-            ["accessId"] = _opt.AccessId,
-            ["accessToken"] = _opt.AccessToken,
-            ["module"] = module,
-            ["parameters"] = parameters ?? new { }
-        };
+            return new K3o58kEnvelope<T>
+            {
+                ok = false,
+                message = "Wallet credentials not configured (AccessId / AccessToken missing).",
+                httpStatus = 0
+            };
+        }
 
-        using var res = await _http.PostAsJsonAsync("", body, ct);
+        if (!module.StartsWith("/")) module = "/" + module;
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(_opt.AccessId), "accessId");
+        form.Add(new StringContent(_opt.AccessToken), "accessToken");
+        form.Add(new StringContent(module), "module");
+
+        var paramJson = JsonSerializer.Serialize(parameters ?? new { });
+        form.Add(new StringContent(paramJson), "parameters");
+
+        using var res = await _http.PostAsync("index.php", form, ct);
         var raw = await res.Content.ReadAsStringAsync(ct);
 
         try
         {
-            var parsed = await res.Content.ReadFromJsonAsync<K3o58kEnvelope<T>>(cancellationToken: ct);
-            return parsed ?? new K3o58kEnvelope<T>
+            var parsed = JsonSerializer.Deserialize<K3o58kEnvelope<T>>(
+                raw,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (parsed == null)
             {
-                ok = false,
-                message = "Empty JSON response",
-                raw = raw
-            };
+                return new K3o58kEnvelope<T>
+                {
+                    ok = false,
+                    message = "Empty JSON response",
+                    raw = raw,
+                    httpStatus = (int)res.StatusCode
+                };
+            }
+
+            parsed.raw = raw;
+            parsed.httpStatus = (int)res.StatusCode;
+            return parsed;
         }
         catch
         {
             return new K3o58kEnvelope<T>
             {
                 ok = false,
-                message = "Non-JSON response",
-                raw = raw
+                message = $"Non-JSON response (HTTP {(int)res.StatusCode})",
+                raw = raw,
+                httpStatus = (int)res.StatusCode
             };
         }
     }
