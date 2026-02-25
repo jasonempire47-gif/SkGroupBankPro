@@ -16,7 +16,7 @@ public sealed class K3o58kClient
 
     public async Task<K3o58kEnvelope<T>> CallAsync<T>(
         string module,
-        object? parameters,
+        IDictionary<string, string?>? fields = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_opt.AccessId) ||
@@ -30,15 +30,19 @@ public sealed class K3o58kClient
             };
         }
 
-        if (!module.StartsWith("/")) module = "/" + module;
-
         using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(module), "module");
         form.Add(new StringContent(_opt.AccessId), "accessId");
         form.Add(new StringContent(_opt.AccessToken), "accessToken");
-        form.Add(new StringContent(module), "module");
 
-        var paramJson = JsonSerializer.Serialize(parameters ?? new { });
-        form.Add(new StringContent(paramJson), "parameters");
+        if (fields != null)
+        {
+            foreach (var kv in fields)
+            {
+                if (kv.Value is null) continue;
+                form.Add(new StringContent(kv.Value), kv.Key);
+            }
+        }
 
         using var res = await _http.PostAsync("index.php", form, ct);
         var raw = await res.Content.ReadAsStringAsync(ct);
