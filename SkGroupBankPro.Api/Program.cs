@@ -8,9 +8,9 @@ using Microsoft.OpenApi.Models;
 using SkGroupBankpro.Api.Data;
 using SkGroupBankpro.Api.Hubs;
 using SkGroupBankpro.Api.Services;
-using SkGroupBankpro.Api.Utilities;
 using SkGroupBankpro.Api.Services.Wallet;
 using SkGroupBankpro.Api.Services.WalletProviders.K3o58k;
+using SkGroupBankpro.Api.Utilities;
 using System.Text;
 
 // ✅ Lucky Wheel Service namespace (if WheelService is in SkGroupBankpro.Api root)
@@ -104,7 +104,9 @@ builder.Services.AddHttpClient<K3o58kClient>((sp, http) =>
     http.Timeout = TimeSpan.FromSeconds(Math.Clamp(opt.TimeoutSeconds, 5, 60));
 });
 
+// ✅ Wallet service + generic gateway (optional controller uses this)
 builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<K3o58kGateway>();
 
 /* ---------------- JWT ---------------- */
 var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -248,7 +250,7 @@ using (var scope = app.Services.CreateScope())
             new SkGroupBankpro.Api.Models.GameType { Name = "918Kaya", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "Mega888", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "Live22", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
-            new SkGroupBankpro.Api.Models.GameType { Name = "Live22", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
+            new SkGroupBankpro.Api.Models.GameType { Name = "Pussy888", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "Joker123", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow },
             new SkGroupBankpro.Api.Models.GameType { Name = "MegaH5", IsEnabled = true, CreatedAtUtc = DateTime.UtcNow }
         );
