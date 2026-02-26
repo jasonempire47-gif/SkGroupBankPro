@@ -1,6 +1,7 @@
 (() => {
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxbxrYVq-Yfpp307pOzsc90XUm1INUE4JDw4_6Cw8m7u86H-LxhzVKpSU3bE0Umwj4/exec";
-  const SECRET_KEY = "skgroup-2424@"; // ✅ must match Apps Script SECRET
+  const WEBAPP_URL =
+    "https://script.google.com/macros/s/AKfycbxbxrYVq-Yfpp307pOzsc90XUm1INUE4JDw4_6Cw8m7u86H-LxhzVKpSU3bE0Umwj4/exec";
+  const SECRET_KEY = "skgroup-2424@"; // must match Apps Script SECRET
 
   const $ = (id) => document.getElementById(id);
 
@@ -15,6 +16,7 @@
   let cache = [];
 
   function toast(msg, ok = true) {
+    if (!statusMsg) return;
     statusMsg.textContent = msg || "";
     statusMsg.style.color = ok ? "" : "#ff2b2b";
     if (msg) setTimeout(() => (statusMsg.textContent = ""), 2200);
@@ -37,6 +39,7 @@
     return v;
   }
 
+  // ✅ GET (Sheet → Records)
   async function sheetGetAll() {
     const url = `${WEBAPP_URL}?key=${encodeURIComponent(SECRET_KEY)}`;
     const res = await fetch(url, { method: "GET" });
@@ -46,12 +49,20 @@
     return out.rows || [];
   }
 
+  // ✅ POST (Save) — use form-urlencoded to avoid CORS preflight
   async function sheetAdd(payload) {
+    const body = new URLSearchParams({
+      key: SECRET_KEY,
+      name: payload.name || "",
+      phoneNumber: payload.phoneNumber || "",
+      website: payload.website || "",
+    });
+
     const res = await fetch(WEBAPP_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, key: SECRET_KEY }),
+      body, // ✅ no headers
     });
+
     if (!res.ok) throw new Error("POST failed");
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || "Save failed");
@@ -59,7 +70,7 @@
   }
 
   function filteredList() {
-    const q = (search.value || "").trim().toLowerCase();
+    const q = (search?.value || "").trim().toLowerCase();
     return cache.filter((r) => {
       const hay = `${r.Name || ""} ${r.PhoneNumber || ""} ${r.Website || ""}`.toLowerCase();
       return !q || hay.includes(q);
@@ -68,8 +79,9 @@
 
   function render() {
     const list = filteredList();
-    countLabel.textContent = `${list.length} record(s)`;
+    if (countLabel) countLabel.textContent = `${list.length} record(s)`;
 
+    if (!tbody) return;
     tbody.innerHTML = list
       .map((r) => {
         const website = (r.Website || "").trim();
@@ -121,18 +133,18 @@
       toast("Loaded.");
     } catch (e) {
       console.error(e);
-      toast("Failed to load (check key/deploy).", false);
+      toast(e?.message ? String(e.message) : "Failed to load.", false);
     }
   }
 
   // Events
-  form.addEventListener("submit", async (e) => {
+  form?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const payload = {
-      name: ($("name").value || "").trim(),
-      phoneNumber: ($("phone").value || "").trim(),
-      website: normalizeWebsite($("website").value),
+      name: ($("name")?.value || "").trim(),
+      phoneNumber: ($("phone")?.value || "").trim(),
+      website: normalizeWebsite($("website")?.value),
     };
 
     if (!payload.name) return toast("Name required.", false);
@@ -145,20 +157,19 @@
       toast("Saved ✅");
     } catch (e) {
       console.error(e);
-      toast(String(e.message || "Save failed"), false);
+      toast(e?.message ? String(e.message) : "Save failed.", false);
     }
   });
 
-  search.addEventListener("input", render);
-  btnRefresh.addEventListener("click", reload);
+  search?.addEventListener("input", render);
+  btnRefresh?.addEventListener("click", reload);
 
-  btnExportCsv.addEventListener("click", () => {
+  btnExportCsv?.addEventListener("click", () => {
     const list = filteredList();
     if (!list.length) return toast("No records to export.", false);
     download("concierge-records.csv", toCSV(list));
     toast("CSV exported.");
   });
 
-  // Init
   reload();
 })();
