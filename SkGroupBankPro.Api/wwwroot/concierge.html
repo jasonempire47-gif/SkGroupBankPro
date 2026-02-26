@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SK GROUP BANKPRO - Concierge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app">
+    <!-- SIDEBAR (same as dashboard) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+        <button class="iconBtn" id="btnSidebarToggle" type="button" title="Collapse">☰</button>
+      </div>
+
+      <div class="navSectionLabel">ADMIN</div>
+      <a class="navItem" id="navDashboard" href="dashboard.html"><span class="navIcon">🏠</span><span>Dashboard</span></a>
+      <a class="navItem" id="navFinance" href="finance.html"><span class="navIcon">🏦</span><span>Finance</span></a>
+      <a class="navItem" id="navGames" href="games.html"><span class="navIcon">🎮</span><span>Games</span></a>
+      <a class="navItem" id="navUsers" href="admin-users.html"><span class="navIcon">👤</span><span>Users</span></a>
+
+      <div class="navSectionLabel">STAFF</div>
+      <a class="navItem" href="staff.html"><span class="navIcon">🧰</span><span>Staff Tools</span></a>
+      <a class="navItem" href="rebates.html"><span class="navIcon">💸</span><span>Rebates</span></a>
+
+      <div class="navSectionLabel">CONCIERGE</div>
+      <a class="navItem active" id="navConcierge" href="concierge.html"><span class="navIcon">📇</span><span>Concierge</span></a>
+
+      <div class="navSectionLabel">EVENTS</div>
+      <a class="navItem" id="navEvents" href="CustomerEvent.html"><span class="navIcon">🎉</span><span>Customer Events</span></a>
+
+      <div class="sidebarBottom">
+        <a class="navItem danger" href="index.html" id="logoutBtn">
+          <span class="navIcon">⏻</span>
+          <span>Logout</span>
+        </a>
+        <div class="sidebarFooter">
+          <div class="mutedSmall">SpinKing Admin</div>
+          <div class="mutedSmall">Preview</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">
+          <button class="iconBtn" title="Menu">≡</button>
+          <div class="crumbText">
+            <span class="muted">Admin</span>
+            <span class="sep">/</span>
+            <span class="gold">Concierge</span>
+          </div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="userChip">
+            <div class="avatar" id="userAvatar">A</div>
+            <div class="userMeta">
+              <div class="userName" id="userName">Admin</div>
+              <div class="userRole" id="userRole">Admin</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTENT -->
+      <section class="card tableCard">
+        <div class="tableHeader">
+          <div class="tableTitle">Customer Personal Details</div>
+
+          <div class="tableActions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input id="search" type="text" placeholder="Search name / phone / website" style="min-width:260px;">
+            <button class="btn ghost" id="btnRefresh" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div style="padding:14px;">
+          <form id="customerForm" style="display:grid; gap:10px; max-width:720px;">
+            <input type="hidden" id="editId" value="">
+
+            <div style="display:grid; gap:6px;">
+              <div class="mutedSmall">Name</div>
+              <input id="name" type="text" placeholder="Customer name" required>
+            </div>
+
+            <div style="display:grid; gap:6px;">
+              <div class="mutedSmall">Phone Number</div>
+              <input id="phone" type="tel" placeholder="+63 9XX XXX XXXX" required>
+            </div>
+
+            <div style="display:grid; gap:6px;">
+              <div class="mutedSmall">Company Website</div>
+              <input id="website" type="text" placeholder="company.com or https://company.com">
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button class="btn" type="submit" id="btnSave">Save</button>
+              <button class="btn ghost" type="button" id="btnCancelEdit" hidden>Cancel Edit</button>
+              <div class="mutedSmall" id="statusMsg"></div>
+            </div>
+          </form>
+        </div>
+
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Website</th>
+                <th class="center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 2px 0;">
+          <div class="mutedSmall" id="countLabel">0 record(s)</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Core scripts (same pattern as your dashboard) -->
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+
+  <!-- Guards / Nav (optional but consistent with your pages) -->
+  <script src="js/admin-guard.js"></script>
+  <script src="js/admin-nav.js"></script>
+
+  <!-- Concierge logic -->
+  <script src="js/concierge.js"></script>
+</body>
+</html>

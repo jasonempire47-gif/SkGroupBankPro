@@ -6,6 +6,8 @@ namespace SkGroupBankpro.Api.Data;
 public sealed class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    
+    public DbSet<CustomerContact> CustomerContacts => Set<CustomerContact>();
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Customer> Customers => Set<Customer>();
