@@ -1,6 +1,6 @@
 (() => {
   const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxbxrYVq-Yfpp307pOzsc90XUm1INUE4JDw4_6Cw8m7u86H-LxhzVKpSU3bE0Umwj4/exec";
-  const SECRET_KEY = "skconcierge-0808"; // ✅ must match Apps Script SECRET
+  const SECRET_KEY = "skgroup-0808"; // ✅ must match Apps Script SECRET
 
   const $ = (id) => document.getElementById(id);
 
