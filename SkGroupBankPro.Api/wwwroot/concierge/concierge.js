@@ -1,7 +1,6 @@
 (() => {
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxbxrYVq-Yfpp307pOzsc90XUm1INUE4JDw4_6Cw8m7u86H-LxhzVKpSU3bE0Umwj4/exec";
-  const SECRET_KEY = "skgroup-2424@"; // ✅ same as Apps Script SECRET
-
+  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyIzzPRkeIatOYbvM74YR0HQfsZA8mIY1Eg1sgxuig5480Jj69ex-ujqgoQhnIne_ZG-Q/exec";     // ✅ put your Apps Script WebApp URL here
+  const SECRET_KEY = "skgroup-2424@";     
   const $ = (id) => document.getElementById(id);
 
   const form = $("customerForm");
@@ -46,48 +45,64 @@
     return out.rows || [];
   }
 
-  async function sheetAdd(payload) {
-    const res = await fetch(WEBAPP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, key: SECRET_KEY }),
-    });
-    if (!res.ok) throw new Error("POST failed");
-    const out = await res.json();
-    if (!out.ok) throw new Error(out.error || "Save failed");
-    return out;
-  }
+ async function sheetAdd(payload) {
+  const fd = new FormData();
+  fd.append("key", SECRET_KEY);
+  fd.append("name", payload.name || "");
+  fd.append("phoneNumber", payload.phoneNumber || "");
+  fd.append("website", payload.website || "");
+  fd.append("group", payload.group || "");
+
+  const res = await fetch(WEBAPP_URL, {
+    method: "POST",
+    body: fd, // ✅ no headers
+  });
+
+  if (!res.ok) throw new Error("POST failed");
+  const out = await res.json();
+  if (!out.ok) throw new Error(out.error || "Save failed");
+  return out;
+}
 
   function render() {
-    const q = (search?.value || "").trim().toLowerCase();
-    const list = cache.filter((r) => {
-      const hay = `${r.Name || ""} ${r.PhoneNumber || ""} ${r.Website || ""}`.toLowerCase();
-      return !q || hay.includes(q);
-    });
+  const q = (search?.value || "").trim().toLowerCase();
 
-    if (countLabel) countLabel.textContent = `${list.length} record(s)`;
+  const list = cache.filter((r) => {
+    const hay = `${r.Name || ""} ${r.PhoneNumber || ""} ${r.Website || ""} ${r.Group || ""}`.toLowerCase();
+    return !q || hay.includes(q);
+  });
 
-    if (!tbody) return;
-    tbody.innerHTML = list
-      .map((r) => {
-        const website = (r.Website || "").trim();
-        const websiteHtml = website
-          ? (/^https?:\/\//i.test(website)
-              ? `<a class="gold" href="${esc(website)}" target="_blank" rel="noopener">${esc(website)}</a>`
-              : `<span>${esc(website)}</span>`)
-          : `<span class="mutedSmall">—</span>`;
+  if (countLabel) countLabel.textContent = `${list.length} record(s)`;
+  if (!tbody) return;
 
-        return `
-          <tr>
-            <td>${esc(r.Name)}</td>
-            <td>${esc(r.PhoneNumber)}</td>
-            <td>${websiteHtml}</td>
-            <td class="right">${esc(r.CreatedAt || "")}</td>
-          </tr>
-        `;
-      })
-      .join("");
-  }
+  tbody.innerHTML = list.map((r) => {
+    const website = String(r.Website ?? "").trim();
+    const websiteHtml = website
+      ? (/^https?:\/\//i.test(website)
+          ? `<a class="gold" href="${esc(website)}" target="_blank" rel="noopener">${esc(website)}</a>`
+          : `<span>${esc(website)}</span>`)
+      : `<span class="mutedSmall">—</span>`;
+
+    const groupHtml = (r.Group || "").trim()
+      ? `<span>${esc(r.Group)}</span>`
+      : `<span class="mutedSmall">—</span>`;
+
+    return `
+      <tr>
+        <td>${esc(r.Name || "")}</td>
+        <td>${esc(r.PhoneNumber || "")}</td>
+        <td>${websiteHtml}</td>
+        <td>${groupHtml}</td>
+        <td class="center">
+          <div class="rowActions">
+            <button class="btnMini" data-edit="${esc(r._rowId || "")}">Edit</button>
+            <button class="btnMini danger" data-del="${esc(r._rowId || "")}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
 
   async function reload() {
     try {
@@ -107,6 +122,7 @@
       name: ($("name").value || "").trim(),
       phoneNumber: ($("phone").value || "").trim(),
       website: normalizeWebsite($("website").value),
+      group: ($("group").value || "").trim(), // ✅ ADD GROUP
     };
 
     if (!payload.name) return toast("Name required.", false);
