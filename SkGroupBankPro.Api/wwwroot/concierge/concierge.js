@@ -1,8 +1,6 @@
 (() => {
-
-  const WEBAPP_URL = "PASTE_YOUR_NEW_DEPLOYED_WEBAPP_URL_HERE";
-  const SECRET_KEY = "skgroup-2424@";
-
+  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyIzzPRkeIatOYbvM74YR0HQfsZA8mIY1Eg1sgxuig5480Jj69ex-ujqgoQhnIne_ZG-Q/exec";     // ✅ put your Apps Script WebApp URL here
+  const SECRET_KEY = "skgroup-2424@";     
   const $ = (id) => document.getElementById(id);
 
   const form = $("customerForm");
