@@ -1,6 +1,6 @@
 (() => {
   // ✅ Use your latest deployed Apps Script URL (same one you updated with _rowId/update/delete)
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyIzzPRkeIatOYbvM74YR0HQfsZA8mIY1Eg1sgxuig5480Jj69ex-ujqgoQhnIne_ZG-Q/exec";
+  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxJRzps4epIU7QoVL3rNLDvxQ-WYYWm6CeOgDSgsSj07bm1EV_J6qcsPlJWrBDpIiittg/exec";
   const SECRET_KEY = "skgroup-2424@";
 
   const $ = (id) => document.getElementById(id);
