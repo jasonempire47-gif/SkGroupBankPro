@@ -1,6 +1,8 @@
 (() => {
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyIzzPRkeIatOYbvM74YR0HQfsZA8mIY1Eg1sgxuig5480Jj69ex-ujqgoQhnIne_ZG-Q/exec";     // ✅ put your Apps Script WebApp URL here
-  const SECRET_KEY = "skgroup-2424@";     
+
+  const WEBAPP_URL = "PASTE_YOUR_NEW_DEPLOYED_WEBAPP_URL_HERE";
+  const SECRET_KEY = "skgroup-2424@";
+
   const $ = (id) => document.getElementById(id);
 
   const form = $("customerForm");
@@ -9,138 +11,191 @@
   const btnRefresh = $("btnRefresh");
   const statusMsg = $("statusMsg");
   const countLabel = $("countLabel");
+  const btnCancelEdit = $("btnCancelEdit");
+  const btnSave = $("btnSave");
 
   let cache = [];
+  let isSaving = false;
 
   function toast(msg, ok = true) {
-    if (!statusMsg) return;
     statusMsg.textContent = msg || "";
     statusMsg.style.color = ok ? "" : "#ff2b2b";
-    if (msg) setTimeout(() => (statusMsg.textContent = ""), 2200);
+    if (msg) setTimeout(() => statusMsg.textContent = "", 2000);
   }
 
-  function normalizeWebsite(v) {
-    v = (v || "").trim();
-    if (!v) return "";
-    if (/^https?:\/\//i.test(v)) return v;
-    if (v.includes(".")) return "https://" + v.replace(/^\/+/, "");
-    return v;
+  function setSaving(state) {
+    isSaving = state;
+    btnSave.disabled = state;
+    btnSave.style.opacity = state ? "0.6" : "";
   }
 
   function esc(s) {
     return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  function maskPhone(phone) {
+    phone = String(phone || "");
+    if (phone.length <= 7) return "X".repeat(phone.length);
+    return "X".repeat(7) + phone.slice(7);
   }
 
   async function sheetGetAll() {
-    const url = `${WEBAPP_URL}?key=${encodeURIComponent(SECRET_KEY)}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok) throw new Error("GET failed");
+    const res = await fetch(`${WEBAPP_URL}?key=${SECRET_KEY}`);
     const out = await res.json();
-    if (!out.ok) throw new Error(out.error || "Unauthorized");
+    if (!out.ok) throw new Error(out.error);
     return out.rows || [];
   }
 
- async function sheetAdd(payload) {
-  const fd = new FormData();
-  fd.append("key", SECRET_KEY);
-  fd.append("name", payload.name || "");
-  fd.append("phoneNumber", payload.phoneNumber || "");
-  fd.append("website", payload.website || "");
-  fd.append("group", payload.group || "");
+  async function sheetAdd(data) {
+    const fd = new FormData();
+    fd.append("key", SECRET_KEY);
+    fd.append("name", data.name);
+    fd.append("phoneNumber", data.phoneNumber);
+    fd.append("website", data.website);
+    fd.append("group", data.group);
 
-  const res = await fetch(WEBAPP_URL, {
-    method: "POST",
-    body: fd, // ✅ no headers
-  });
-
-  if (!res.ok) throw new Error("POST failed");
-  const out = await res.json();
-  if (!out.ok) throw new Error(out.error || "Save failed");
-  return out;
-}
-
-  function render() {
-  const q = (search?.value || "").trim().toLowerCase();
-
-  const list = cache.filter((r) => {
-    const hay = `${r.Name || ""} ${r.PhoneNumber || ""} ${r.Website || ""} ${r.Group || ""}`.toLowerCase();
-    return !q || hay.includes(q);
-  });
-
-  if (countLabel) countLabel.textContent = `${list.length} record(s)`;
-  if (!tbody) return;
-
-  tbody.innerHTML = list.map((r) => {
-    const website = String(r.Website ?? "").trim();
-    const websiteHtml = website
-      ? (/^https?:\/\//i.test(website)
-          ? `<a class="gold" href="${esc(website)}" target="_blank" rel="noopener">${esc(website)}</a>`
-          : `<span>${esc(website)}</span>`)
-      : `<span class="mutedSmall">—</span>`;
-
-    const groupHtml = (r.Group || "").trim()
-      ? `<span>${esc(r.Group)}</span>`
-      : `<span class="mutedSmall">—</span>`;
-
-    return `
-      <tr>
-        <td>${esc(r.Name || "")}</td>
-        <td>${esc(r.PhoneNumber || "")}</td>
-        <td>${websiteHtml}</td>
-        <td>${groupHtml}</td>
-        <td class="center">
-          <div class="rowActions">
-            <button class="btnMini" data-edit="${esc(r._rowId || "")}">Edit</button>
-            <button class="btnMini danger" data-del="${esc(r._rowId || "")}">Delete</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join("");
-}
-
-  async function reload() {
-    try {
-      cache = await sheetGetAll();
-      render();
-      toast("Loaded.");
-    } catch (e) {
-      console.error(e);
-      toast("Failed to load (check key / deployment).", false);
-    }
+    const res = await fetch(WEBAPP_URL, { method:"POST", body:fd });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error);
   }
 
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  async function sheetUpdate(rowId, data) {
+    const fd = new FormData();
+    fd.append("key", SECRET_KEY);
+    fd.append("action", "update");
+    fd.append("rowId", rowId);
+    fd.append("name", data.name);
+    fd.append("phoneNumber", data.phoneNumber);
+    fd.append("website", data.website);
+    fd.append("group", data.group);
 
-    const payload = {
-      name: ($("name").value || "").trim(),
-      phoneNumber: ($("phone").value || "").trim(),
-      website: normalizeWebsite($("website").value),
-      group: ($("group").value || "").trim(), // ✅ ADD GROUP
-    };
+    const res = await fetch(WEBAPP_URL, { method:"POST", body:fd });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error);
+  }
 
-    if (!payload.name) return toast("Name required.", false);
-    if (!payload.phoneNumber) return toast("Phone required.", false);
+  async function sheetDelete(rowId) {
+    const fd = new FormData();
+    fd.append("key", SECRET_KEY);
+    fd.append("action", "delete");
+    fd.append("rowId", rowId);
 
-    try {
-      await sheetAdd(payload);
-      form.reset();
-      await reload();
-      toast("Saved to Google Sheet ✅");
-    } catch (e) {
-      console.error(e);
-      toast(String(e.message || "Save failed"), false);
+    const res = await fetch(WEBAPP_URL, { method:"POST", body:fd });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error);
+  }
+
+  function render() {
+    const q = search.value.toLowerCase();
+    const list = cache.filter(r =>
+      !q || JSON.stringify(r).toLowerCase().includes(q)
+    );
+
+    countLabel.textContent = `${list.length} record(s)`;
+
+    tbody.innerHTML = list.map(r => `
+      <tr>
+        <td>${esc(r.Name)}</td>
+        <td title="${esc(r.PhoneNumber)}">${maskPhone(r.PhoneNumber)}</td>
+        <td>${esc(r.Website)}</td>
+        <td>${esc(r.Group)}</td>
+        <td class="center">
+          <button class="btnMini" data-edit="${r._rowId}">Edit</button>
+          <button class="btnMini danger" data-del="${r._rowId}">Delete</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function startEdit(rowId) {
+    const row = cache.find(r => String(r._rowId) === String(rowId));
+    if (!row) return;
+
+    $("editId").value = rowId;
+    $("name").value = row.Name;
+    $("phone").value = row.PhoneNumber;
+    $("website").value = row.Website;
+    $("group").value = row.Group;
+
+    btnSave.textContent = "Update";
+    btnCancelEdit.hidden = false;
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  function resetForm() {
+    form.reset();
+    $("editId").value = "";
+    btnSave.textContent = "Save";
+    btnCancelEdit.hidden = true;
+  }
+
+  tbody.addEventListener("click", async e => {
+    const edit = e.target.getAttribute("data-edit");
+    const del = e.target.getAttribute("data-del");
+
+    if (edit) return startEdit(edit);
+
+    if (del) {
+      if (!confirm("Delete this record?")) return;
+      try {
+        await sheetDelete(del);
+        await reload();
+        toast("Deleted");
+      } catch(err) {
+        toast(err.message,false);
+      }
     }
   });
 
-  search?.addEventListener("input", render);
-  btnRefresh?.addEventListener("click", reload);
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (isSaving) return;
+
+    const data = {
+      name: $("name").value.trim(),
+      phoneNumber: $("phone").value.trim(),
+      website: $("website").value.trim(),
+      group: $("group").value.trim()
+    };
+
+    if (!data.name) return toast("Name required",false);
+    if (!data.phoneNumber) return toast("Phone required",false);
+
+    const editId = $("editId").value;
+
+    try {
+      setSaving(true);
+
+      if (editId) {
+        await sheetUpdate(editId, data);
+        toast("Updated");
+      } else {
+        await sheetAdd(data);
+        toast("Saved");
+      }
+
+      resetForm();
+      await reload();
+
+    } catch(err) {
+      toast(err.message,false);
+    } finally {
+      setSaving(false);
+    }
+  });
+
+  btnCancelEdit.addEventListener("click", resetForm);
+  search.addEventListener("input", render);
+  btnRefresh.addEventListener("click", reload);
+
+  async function reload() {
+    cache = await sheetGetAll();
+    render();
+  }
 
   reload();
+
 })();

@@ -1,55 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SK GROUP BANKPRO - Concierge</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SK GROUP BANKPRO - Concierge</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="concierge.js" defer></script>
 </head>
 
 <body>
 <div class="app">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar">
     <div class="brand">
       <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
-      <button class="iconBtn" id="btnSidebarToggle">☰</button>
-    </div>
-
-    <div class="navSectionLabel">CONCIERGE</div>
-    <a class="navItem active"><span class="navIcon">📇</span><span>Concierge</span></a>
-
-    <div class="sidebarBottom">
-      <a class="navItem danger" id="logoutBtn">
-        <span class="navIcon">⏻</span><span>Logout</span>
-      </a>
     </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main">
-    <header class="topbar">
-      <div class="crumbText">
-        <span class="gold">Concierge</span>
-      </div>
-      <div class="userChip">
-        <div class="avatar" id="userAvatar">A</div>
-        <div class="userMeta">
-          <div class="userName" id="userName">Admin</div>
-          <div class="userRole">Administrator</div>
-        </div>
-      </div>
-    </header>
 
-    <!-- CONTENT -->
     <section class="card tableCard">
 
       <div class="tableHeader">
         <div class="tableTitle">Customer Personal Details</div>
         <div class="tableActions">
           <input id="search" type="text" placeholder="Search name / phone / website">
-          <button class="btn ghost" id="btnRefresh">Refresh</button>
+          <button class="btn ghost" id="btnRefresh" type="button">Refresh</button>
         </div>
       </div>
 
@@ -68,19 +44,19 @@
           </div>
 
           <div>
-            <div class="mutedSmall">Company Website</div>
+            <div class="mutedSmall">Website</div>
             <input id="website" type="text">
           </div>
-           
+
           <div>
-            <div class="mutedSmall">Concierge Group</div>
+            <div class="mutedSmall">Group</div>
             <input id="group" type="text">
           </div>
 
-          <div style="display:flex; gap:10px;">
-            <button class="btn" type="submit">Save</button>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <button class="btn" id="btnSave" type="submit">Save</button>
             <button class="btn ghost" type="button" id="btnCancelEdit" hidden>Cancel</button>
-            <div class="mutedSmall" id="statusMsg"></div>
+            <div id="statusMsg" class="mutedSmall"></div>
           </div>
         </form>
       </div>
@@ -107,172 +83,5 @@
     </section>
   </main>
 </div>
-
-<!-- ========================= -->
-<!-- STANDALONE SCRIPT BELOW  -->
-<!-- ========================= -->
-
-<script>
-(() => {
-  // ✅ PUT YOUR VALUES HERE
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxJRzps4epIU7QoVL3rNLDvxQ-WYYWm6CeOgDSgsSj07bm1EV_J6qcsPlJWrBDpIiittg/exec";
-  const SECRET_KEY = "skgroup-2424@"; 
-
-  const $ = (id) => document.getElementById(id);
-
-  const form = $("customerForm");
-  const tbody = $("tbody");
-  const search = $("search");
-  const btnRefresh = $("btnRefresh");
-  const statusMsg = $("statusMsg");
-  const countLabel = $("countLabel");
-  const btnCancelEdit = $("btnCancelEdit");
-
-  // NOTE: This simple version supports ADD + READ only (like your original).
-  // If you want EDIT/DELETE on Google Sheets too, tell me and I’ll add rowId based update/delete.
-
-  let cache = [];
-
-  function toast(msg, ok = true) {
-    if (!statusMsg) return;
-    statusMsg.textContent = msg || "";
-    statusMsg.style.color = ok ? "" : "#ff2b2b";
-    if (msg) setTimeout(() => (statusMsg.textContent = ""), 2200);
-  }
-
-  function normalizeWebsite(v) {
-    v = (v || "").trim();
-    if (!v) return "";
-    if (/^https?:\/\//i.test(v)) return v;
-    if (v.includes(".")) return "https://" + v.replace(/^\/+/, "");
-    return v;
-  }
-
-  function esc(s) {
-    return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  async function sheetGetAll() {
-    const url = `${WEBAPP_URL}?key=${encodeURIComponent(SECRET_KEY)}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok) throw new Error("GET failed");
-    const out = await res.json();
-    if (!out.ok) throw new Error(out.error || "Unauthorized");
-    return out.rows || [];
-  }
-
-  async function sheetAdd(payload) {
-  const fd = new FormData();
-  fd.append("key", SECRET_KEY);
-  fd.append("name", payload.name || "");
-  fd.append("phoneNumber", payload.phoneNumber || "");
-  fd.append("website", payload.website || "");
-  fd.append("group", payload.group || "");
-
-  const res = await fetch(WEBAPP_URL, { method: "POST", body: fd });
-  const out = await res.json();
-
-  if (!res.ok) throw new Error("POST failed");
-  if (!out.ok) throw new Error(out.error || "Save failed");
-  return out;
-}
-
-  function render() {
-    const q = (search?.value || "").trim().toLowerCase();
-
-    const list = cache.filter((r) => {
-      const hay = `${r.Name || ""} ${r.PhoneNumber || ""} ${r.Website || ""} ${r.Group || ""}`.toLowerCase();
-      return !q || hay.includes(q);
-    });
-
-    if (countLabel) countLabel.textContent = `${list.length} record(s)`;
-    if (!tbody) return;
-
-    tbody.innerHTML = list.map((r) => {
-      const website = String(r.Website ?? "").trim();
-      const websiteHtml = website
-        ? (/^https?:\/\//i.test(website)
-            ? `<a class="gold" href="${esc(website)}" target="_blank" rel="noopener">${esc(website)}</a>`
-            : `<span>${esc(website)}</span>`)
-        : `<span class="mutedSmall">—</span>`;
-
-      const groupHtml = (r.Group || "").trim()
-        ? `<span>${esc(r.Group)}</span>`
-        : `<span class="mutedSmall">—</span>`;
-
-      return `
-        <tr>
-          <td>${esc(r.Name || "")}</td>
-          <td>${esc(r.PhoneNumber || "")}</td>
-          <td>${websiteHtml}</td>
-          <td>${groupHtml}</td>
-          <td class="center">
-            <span class="mutedSmall">—</span>
-          </td>
-        </tr>
-      `;
-    }).join("");
-  }
-
-  async function reload() {
-    try {
-      cache = await sheetGetAll();
-      render();
-      toast("Loaded.");
-    } catch (e) {
-      console.error(e);
-      toast("Failed to load (check WEBAPP_URL / key / deployment).", false);
-    }
-  }
-
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const payload = {
-      name: ($("name").value || "").trim(),
-      phoneNumber: ($("phone").value || "").trim(),
-      website: normalizeWebsite($("website").value),
-      group: ($("group").value || "").trim(), // ✅ GROUP sent to sheet
-    };
-
-    if (!payload.name) return toast("Name required.", false);
-    if (!payload.phoneNumber) return toast("Phone required.", false);
-
-    try {
-      // Debug - you can remove later:
-      console.log("POST payload:", payload);
-
-      await sheetAdd(payload);
-      form.reset();
-      btnCancelEdit && (btnCancelEdit.hidden = true);
-      await reload();
-      toast("Saved to Google Sheet ✅");
-    } catch (e) {
-      console.error(e);
-      toast(String(e.message || "Save failed"), false);
-    }
-  });
-
-  search?.addEventListener("input", render);
-  btnRefresh?.addEventListener("click", reload);
-
-  $("btnSidebarToggle")?.addEventListener("click", () => {
-    document.body.classList.toggle("sidebarCollapsed");
-  });
-
-  $("logoutBtn")?.addEventListener("click", () => {
-    alert("Logged out");
-    location.reload();
-  });
-
-  reload();
-})();
-</script>
-
 </body>
 </html>
