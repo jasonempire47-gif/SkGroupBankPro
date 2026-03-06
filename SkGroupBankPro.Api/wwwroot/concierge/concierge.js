@@ -1,5 +1,4 @@
 (() => {
-  // ✅ Use your latest deployed Apps Script URL (same one you updated with _rowId/update/delete)
   const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxJRzps4epIU7QoVL3rNLDvxQ-WYYWm6CeOgDSgsSj07bm1EV_J6qcsPlJWrBDpIiittg/exec";
   const SECRET_KEY = "skgroup-2424@";
 
@@ -20,13 +19,18 @@
   function toast(msg, ok = true) {
     statusMsg.textContent = msg || "";
     statusMsg.style.color = ok ? "" : "#ff2b2b";
-    if (msg) setTimeout(() => (statusMsg.textContent = ""), 2000);
+    if (msg) setTimeout(() => (statusMsg.textContent = ""), 2500);
   }
 
-  function setSaving(state) {
+  function setSaving(state, label) {
     isSaving = state;
     btnSave.disabled = state;
     btnSave.style.opacity = state ? "0.6" : "";
+    if (label) btnSave.textContent = label;
+  }
+
+  function makeRequestId() {
+    return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 
   function esc(s) {
@@ -38,58 +42,63 @@
       .replaceAll("'", "&#039;");
   }
 
-  // ✅ Mask first 7 characters
   function maskPhone(phone) {
-    phone = String(phone || "").trim();
-    if (!phone) return "";
-    if (phone.length <= 7) return "X".repeat(phone.length);
-    return "X".repeat(7) + phone.slice(7);
+    const s = String(phone || "").trim();
+    if (!s) return "";
+    if (s.length <= 7) return "X".repeat(s.length);
+    return "X".repeat(7) + s.slice(7);
   }
 
   async function sheetGetAll() {
     const res = await fetch(`${WEBAPP_URL}?key=${encodeURIComponent(SECRET_KEY)}`);
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || "Unauthorized");
-    return out.rows || [];
+
+    const rows = out.rows || [];
+    if (rows.length && rows[0]._rowId === undefined) {
+      throw new Error("Backend missing _rowId. Redeploy Apps Script new version.");
+    }
+    return rows;
+  }
+
+  async function post(fd) {
+    const res = await fetch(WEBAPP_URL, { method: "POST", body: fd });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || "Request failed");
+    return out;
   }
 
   async function sheetAdd(data) {
     const fd = new FormData();
     fd.append("key", SECRET_KEY);
+    fd.append("requestId", makeRequestId()); // ✅ prevents double submit
     fd.append("name", data.name);
     fd.append("phoneNumber", data.phoneNumber);
     fd.append("website", data.website);
     fd.append("group", data.group);
-
-    const res = await fetch(WEBAPP_URL, { method:"POST", body: fd });
-    const out = await res.json();
-    if (!out.ok) throw new Error(out.error || "Save failed");
+    return post(fd);
   }
 
   async function sheetUpdate(rowId, data) {
     const fd = new FormData();
     fd.append("key", SECRET_KEY);
+    fd.append("requestId", makeRequestId()); // ✅ prevents double submit
     fd.append("action", "update");
     fd.append("rowId", String(rowId));
     fd.append("name", data.name);
     fd.append("phoneNumber", data.phoneNumber);
     fd.append("website", data.website);
     fd.append("group", data.group);
-
-    const res = await fetch(WEBAPP_URL, { method:"POST", body: fd });
-    const out = await res.json();
-    if (!out.ok) throw new Error(out.error || "Update failed");
+    return post(fd);
   }
 
   async function sheetDelete(rowId) {
     const fd = new FormData();
     fd.append("key", SECRET_KEY);
+    fd.append("requestId", makeRequestId()); // ✅ prevents double submit
     fd.append("action", "delete");
     fd.append("rowId", String(rowId));
-
-    const res = await fetch(WEBAPP_URL, { method:"POST", body: fd });
-    const out = await res.json();
-    if (!out.ok) throw new Error(out.error || "Delete failed");
+    return post(fd);
   }
 
   function render() {
@@ -149,21 +158,22 @@
     if (del) {
       if (!confirm("Delete this record?")) return;
       try {
-        setSaving(true);
+        setSaving(true, "Deleting...");
         await sheetDelete(del);
         await reload();
         toast("Deleted ✅");
       } catch (err) {
         toast(err.message || "Delete failed", false);
       } finally {
-        setSaving(false);
+        setSaving(false, $("editId").value ? "Update" : "Save");
       }
     }
   });
 
+  // Strong lock: only submit once
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (isSaving) return; // ✅ save 1 time only
+    if (isSaving) return;
 
     const data = {
       name: $("name").value.trim(),
@@ -178,22 +188,26 @@
     const editId = $("editId").value;
 
     try {
-      setSaving(true);
+      setSaving(true, editId ? "Updating..." : "Saving...");
 
-      if (editId) {
-        await sheetUpdate(editId, data);
-        toast("Updated ✅");
-      } else {
-        await sheetAdd(data);
-        toast("Saved ✅");
-      }
+      if (editId) await sheetUpdate(editId, data);
+      else await sheetAdd(data);
 
       resetForm();
       await reload();
+      toast(editId ? "Updated ✅" : "Saved ✅");
+
     } catch (err) {
       toast(err.message || "Save failed", false);
     } finally {
-      setSaving(false);
+      setSaving(false, $("editId").value ? "Update" : "Save");
+    }
+  });
+
+  // prevent Enter spam
+  form.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+      e.preventDefault();
     }
   });
 
@@ -202,8 +216,13 @@
   btnRefresh.addEventListener("click", reload);
 
   async function reload() {
-    cache = await sheetGetAll();
-    render();
+    try {
+      cache = await sheetGetAll();
+      render();
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Load failed", false);
+    }
   }
 
   reload();

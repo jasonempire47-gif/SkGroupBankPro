@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Tracker</title>
+  <style>
+    :root {
+      --bg: #f4f1ed;
+      --panel: #ffffff;
+      --line: #b8a9a0;
+      --header: #8a4e4d;
+      --text: #201a18;
+      --muted: #6f615c;
+      --chip-brown: #4e2d07;
+      --chip-blue: #0e4a80;
+      --chip-olive: #7f7142;
+      --chip-green: #2d8c1f;
+      --chip-red: #8f0d0d;
+      --chip-cyan: #0f89a7;
+      --chip-orange: #a25b10;
+      --shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .password-screen,
+    .app {
+      min-height: 100vh;
+    }
+
+    .password-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .password-card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid #d6cbc4;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .password-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+    }
+
+    .password-card h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+
+    .password-card p {
+      margin: 0 0 18px;
+      color: var(--muted);
+    }
+
+    .app {
+      display: none;
+      padding: 18px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .toolbar h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-box {
+      min-width: 240px;
+    }
+
+    .panel {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .top-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: #4d403b;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid #c8bdb7;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #fffdfb;
+      color: var(--text);
+      outline: none;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 42px;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: #8a4e4d;
+      box-shadow: 0 0 0 3px rgba(138, 78, 77, 0.12);
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: #8a4e4d;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e7ddd7;
+      color: #2f221d;
+    }
+
+    .btn-danger {
+      background: #962020;
+      color: white;
+    }
+
+    .btn-small {
+      padding: 7px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #efe7e0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1700px;
+    }
+
+    thead th {
+      background: var(--header);
+      color: #000;
+      font-size: 12px;
+      padding: 10px 8px;
+      border: 1px solid #5d2d2d;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 6px 8px;
+      border: 1px solid #8d7e75;
+      background: #cfd5c8;
+      font-size: 13px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    tbody tr:nth-child(even) td {
+      background: #d9ddd1;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 92px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .chip.account-type { background: var(--chip-brown); }
+    .chip.account-col { background: var(--chip-blue); }
+    .chip.telegram-banker { background: #5f8b13; }
+    .chip.telegram-sophie { background: var(--chip-olive); }
+    .chip.status-active { background: var(--chip-green); }
+    .chip.status-block { background: var(--chip-red); }
+    .chip.status-standby { background: var(--chip-cyan); }
+    .chip.status-problem { background: #c24017; }
+    .chip.status-verified { background: #6b3c02; }
+    .chip.status-return { background: var(--chip-orange); }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+    }
+
+    .modal {
+      width: min(1200px, 100%);
+      max-height: 92vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid #dbcfc8;
+    }
+
+    .modal-header,
+    .modal-footer {
+      padding: 16px 18px;
+      border-bottom: 1px solid #ebe2dd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-footer {
+      border-bottom: 0;
+      border-top: 1px solid #ebe2dd;
+      justify-content: flex-end;
+    }
+
+    .modal-body {
+      padding: 18px;
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .full-span {
+      grid-column: 1 / -1;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 720px) {
+      .toolbar {
+        align-items: stretch;
+      }
+
+      .toolbar-actions {
+        width: 100%;
+      }
+
+      .search-box {
+        min-width: unset;
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="password-screen" id="passwordScreen">
+    <div class="password-card">
+      <h1>Protected Tracker</h1>
+      <p>Enter the access password to open the dashboard.</p>
+      <div class="field">
+        <label for="sitePassword">Password</label>
+        <input type="password" id="sitePassword" placeholder="Enter password" />
+      </div>
+      <div style="margin-top: 14px; display: flex; gap: 10px;">
+        <button class="btn btn-primary" id="unlockBtn">Unlock</button>
+      </div>
+      <p class="muted" id="passwordError" style="margin-top: 12px; color: #9b1d1d;"></p>
+    </div>
+  </section>
+
+  <main class="app" id="app">
+    <div class="toolbar">
+      <h2>Account Tracker Dashboard</h2>
+      <div class="toolbar-actions">
+        <input class="field search-box" id="searchInput" placeholder="Search name, status, telegram, access code..." />
+        <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
+        <button class="btn btn-primary" id="openCreateModalBtn">Add New Record</button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="top-form-grid">
+        <div class="field">
+          <label>Total Records</label>
+          <input id="totalRecords" type="text" readonly value="0" />
+        </div>
+        <div class="field">
+          <label>Active</label>
+          <input id="countActive" type="text" readonly value="0" />
+        </div>
+        <div class="field">
+          <label>Block</label>
+          <input id="countBlock" type="text" readonly value="0" />
+        </div>
+        <div class="field">
+          <label>Standby</label>
+          <input id="countStandby" type="text" readonly value="0" />
+        </div>
+        <div class="field">
+          <label>Verified</label>
+          <input id="countVerified" type="text" readonly value="0" />
+        </div>
+        <div class="field">
+          <label>Problem</label>
+          <input id="countProblem" type="text" readonly value="0" />
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Bank Type</th>
+              <th>Owner's Name</th>
+              <th>Account Type</th>
+              <th>Access Code</th>
+              <th>Password</th>
+              <th>PIN Code</th>
+              <th>DOB</th>
+              <th>Phone No.</th>
+              <th>Account</th>
+              <th>Telegram</th>
+              <th>Status</th>
+              <th>Where</th>
+              <th>Date</th>
+              <th>Received By</th>
+              <th>Date Block</th>
+              <th>Amount Blocked</th>
+              <th>Remarks</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="recordModalBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle" style="margin: 0;">Add New Record</h3>
+        <button class="btn btn-secondary" id="closeModalBtn">Close</button>
+      </div>
+      <div class="modal-body">
+        <form id="recordForm">
+          <input type="hidden" id="recordId" />
+          <div class="modal-grid">
+            <div class="field">
+  <label for="bankType">Bank Type</label>
+  <select id="bankType" name="bankType" required></select>
+</div>
+            <div class="field">
+              <label for="ownerName">Owner's Name</label>
+              <input id="ownerName" name="ownerName" required />
+            </div>
+
+            <div class="field">
+              <label for="accountType">Account Type</label>
+              <select id="accountType" name="accountType" required></select>
+            </div>
+
+            <div class="field">
+              <label for="accessCode">Access Code</label>
+              <input id="accessCode" name="accessCode" required />
+            </div>
+
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password" name="password" required />
+            </div>
+
+            <div class="field">
+              <label for="pinCode">PIN Code</label>
+              <input id="pinCode" name="pinCode" />
+            </div>
+
+            <div class="field">
+              <label for="dob">DOB</label>
+              <input id="dob" name="dob" placeholder="DD/MM/YYYY or DD-MM-YY" />
+            </div>
+
+            <div class="field">
+              <label for="phoneNo">Phone No.</label>
+              <input id="phoneNo" name="phoneNo" />
+            </div>
+
+            <div class="field">
+              <label for="account">Account</label>
+              <input id="account" name="account" value="OWNER" placeholder="Example: OWNER" />
+            </div>
+
+            <div class="field">
+              <label for="telegram">Telegram</label>
+              <select id="telegram" name="telegram" required></select>
+            </div>
+
+            <div class="field">
+              <label for="status">Status</label>
+              <select id="status" name="status" required></select>
+            </div>
+
+            <div class="field">
+              <label for="whereField">Where</label>
+              <input id="whereField" name="whereField" placeholder="Example: 5th Floor" />
+            </div>
+
+            <div class="field">
+              <label for="date">Date</label>
+              <input id="date" name="date" placeholder="DD-MM-YY" />
+            </div>
+
+            <div class="field">
+              <label for="receivedBy">Received By</label>
+              <input id="receivedBy" name="receivedBy" />
+            </div>
+
+            <div class="field">
+              <label for="dateBlock">Date Block</label>
+              <input id="dateBlock" name="dateBlock" placeholder="DD-MM-YY" />
+            </div>
+
+            <div class="field">
+              <label for="amountBlocked">Amount Blocked</label>
+              <input id="amountBlocked" name="amountBlocked" placeholder="$0.00" />
+            </div>
+
+            <div class="field full-span">
+              <label for="remarks">Remarks</label>
+              <textarea id="remarks" name="remarks" placeholder="Remarks"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelModalBtn" type="button">Cancel</button>
+        <button class="btn btn-primary" id="saveRecordBtn" type="submit" form="recordForm">Save Record</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      =============================
+      CONFIGURATION
+      =============================
+      1. Replace WEB_APP_URL with your deployed Google Apps Script web app URL.
+      2. Replace APP_PASSWORD with your chosen website password.
+      3. Optional: replace API_SECRET with the same secret you put in Apps Script.
+    */
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzFrL5z5qvYbJ22aMauPNLiwROzef6bTMivdYFIekkYICJCsNPVGb6u-qFLvGJ9xKk8/exec';
+    const APP_PASSWORD = '123456';
+    const API_SECRET = 'sk-bankrecord123456789';
+
+const OPTIONS = {
+  bankType: [
+    'ING',
+    'UBANK',
+    'STG',
+    'NAB',
+    "PEOPLE'S CHOICE",
+    'ANZ',
+    'WESTPAC',
+    'BANKWEST',
+    'HSBC',
+    'E-HERO',
+    'GSB',
+    'CBA',
+    'UPBANK',
+    'MYBOQ',
+    'BOM',
+    'BCU/SOLOMYOB',
+    'NPBS',
+    'MEGO',
+    'BENDIGO',
+    'BEYOND BANK',
+    'VIRGIN MONEY',
+    'BANK FIRST',
+    'SUNSCORP',
+    'HUME',
+    'HERITAGE',
+    'BANKSA',
+    'QCB',
+    'MY STATE',
+    'AUSWIDE'
+  ],
+  accountType: ['ghost', 'owner', 'agent'],
+  telegram: ['banker', 'sophie'],
+  status: [
+    'block',
+    'active',
+    'standby',
+    'problem',
+    'verified',
+    'return to owner change details'
+  ]
+};
+
+    const state = {
+      rows: [],
+      filteredRows: [],
+      editingId: null,
+      unlocked: false
+    };
+
+    const els = {
+      passwordScreen: document.getElementById('passwordScreen'),
+      app: document.getElementById('app'),
+      sitePassword: document.getElementById('sitePassword'),
+      unlockBtn: document.getElementById('unlockBtn'),
+      passwordError: document.getElementById('passwordError'),
+      searchInput: document.getElementById('searchInput'),
+      refreshBtn: document.getElementById('refreshBtn'),
+      openCreateModalBtn: document.getElementById('openCreateModalBtn'),
+      tableBody: document.getElementById('tableBody'),
+      recordModalBackdrop: document.getElementById('recordModalBackdrop'),
+      closeModalBtn: document.getElementById('closeModalBtn'),
+      cancelModalBtn: document.getElementById('cancelModalBtn'),
+      recordForm: document.getElementById('recordForm'),
+      modalTitle: document.getElementById('modalTitle'),
+      recordId: document.getElementById('recordId'),
+      totalRecords: document.getElementById('totalRecords'),
+      countActive: document.getElementById('countActive'),
+      countBlock: document.getElementById('countBlock'),
+      countStandby: document.getElementById('countStandby'),
+      countVerified: document.getElementById('countVerified'),
+      countProblem: document.getElementById('countProblem')
+    };
+
+    function populateSelect(selectId, options) {
+      const select = document.getElementById(selectId);
+      select.innerHTML = '<option value="">Select</option>' + options.map(option => `\n        <option value="${escapeHtml(option)}">${escapeHtml(capitalizeWords(option))}</option>`).join('');
+    }
+
+    function capitalizeWords(text) {
+      return String(text)
+        .split(' ')
+        .map(word => word ? word.charAt(0).toUpperCase() + word.slice(1) : '')
+        .join(' ');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function getStatusClass(status) {
+      const key = String(status || '').toLowerCase().trim();
+      if (key === 'active') return 'status-active';
+      if (key === 'block') return 'status-block';
+      if (key === 'standby') return 'status-standby';
+      if (key === 'problem') return 'status-problem';
+      if (key === 'verified') return 'status-verified';
+      if (key === 'return to owner change details') return 'status-return';
+      return '';
+    }
+
+    function getTelegramClass(value) {
+      const key = String(value || '').toLowerCase().trim();
+      if (key === 'banker') return 'telegram-banker';
+      if (key === 'sophie') return 'telegram-sophie';
+      return '';
+    }
+
+    function showApp() {
+      els.passwordScreen.style.display = 'none';
+      els.app.style.display = 'block';
+    }
+
+    function handleUnlock() {
+      const entered = els.sitePassword.value;
+      if (entered !== APP_PASSWORD) {
+        els.passwordError.textContent = 'Incorrect password.';
+        return;
+      }
+      els.passwordError.textContent = '';
+      state.unlocked = true;
+      sessionStorage.setItem('trackerUnlocked', 'yes');
+      showApp();
+      loadRows();
+    }
+
+    function openModal(editMode = false, row = null) {
+      els.modalTitle.textContent = editMode ? 'Edit Record' : 'Add New Record';
+      els.recordModalBackdrop.style.display = 'flex';
+      if (!editMode) {
+        state.editingId = null;
+        els.recordForm.reset();
+        els.recordId.value = '';
+        document.getElementById('account').value = 'OWNER';
+        return;
+      }
+      state.editingId = row.id;
+      els.recordId.value = row.id || '';
+      document.getElementById('bankType').value = row.bankType || '';
+      document.getElementById('ownerName').value = row.ownerName || '';
+      document.getElementById('accountType').value = row.accountType || '';
+      document.getElementById('accessCode').value = row.accessCode || '';
+      document.getElementById('password').value = row.password || '';
+      document.getElementById('pinCode').value = row.pinCode || '';
+      document.getElementById('dob').value = row.dob || '';
+      document.getElementById('phoneNo').value = row.phoneNo || '';
+      document.getElementById('account').value = row.account || '';
+      document.getElementById('telegram').value = row.telegram || '';
+      document.getElementById('status').value = row.status || '';
+      document.getElementById('whereField').value = row.whereField || '';
+      document.getElementById('date').value = row.date || '';
+      document.getElementById('receivedBy').value = row.receivedBy || '';
+      document.getElementById('dateBlock').value = row.dateBlock || '';
+      document.getElementById('amountBlocked').value = row.amountBlocked || '';
+      document.getElementById('remarks').value = row.remarks || '';
+    }
+
+    function closeModal() {
+      els.recordModalBackdrop.style.display = 'none';
+    }
+
+  function getFormData() {
+  return {
+    id: els.recordId.value || '',
+    bankType: document.getElementById('bankType').value,
+    ownerName: document.getElementById('ownerName').value.trim(),
+    accountType: document.getElementById('accountType').value,
+    accessCode: document.getElementById('accessCode').value.trim(),
+    password: document.getElementById('password').value.trim(),
+    pinCode: document.getElementById('pinCode').value.trim(),
+    dob: document.getElementById('dob').value.trim(),
+    phoneNo: document.getElementById('phoneNo').value.trim(),
+    account: document.getElementById('account').value.trim(),
+    telegram: document.getElementById('telegram').value,
+    status: document.getElementById('status').value,
+    whereField: document.getElementById('whereField').value.trim(),
+    date: document.getElementById('date').value.trim(),
+    receivedBy: document.getElementById('receivedBy').value.trim(),
+    dateBlock: document.getElementById('dateBlock').value.trim(),
+    amountBlocked: document.getElementById('amountBlocked').value.trim(),
+    remarks: document.getElementById('remarks').value.trim()
+  };
+}
+
+    async function apiRequest(action, payload = {}) {
+      if (!WEB_APP_URL || WEB_APP_URL.includes('PASTE_YOUR')) {
+        throw new Error('Please set your Google Apps Script web app URL in WEB_APP_URL first.');
+      }
+
+      const response = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          secret: API_SECRET,
+          action,
+          payload
+        })
+      });
+
+      const text = await response.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (error) {
+        throw new Error('Invalid server response: ' + text);
+      }
+
+      if (!json.success) {
+        throw new Error(json.message || 'Request failed.');
+      }
+      return json;
+    }
+
+    async function loadRows() {
+      try {
+        els.refreshBtn.disabled = true;
+        const result = await apiRequest('getRecords');
+        state.rows = Array.isArray(result.data) ? result.data : [];
+        applySearch();
+      } catch (error) {
+        alert('Failed to load rows. ' + error.message);
+      } finally {
+        els.refreshBtn.disabled = false;
+      }
+    }
+
+    function applySearch() {
+      const q = els.searchInput.value.trim().toLowerCase();
+      if (!q) {
+        state.filteredRows = [...state.rows];
+      } else {
+        state.filteredRows = state.rows.filter(row => {
+          return Object.values(row).some(value => String(value || '').toLowerCase().includes(q));
+        });
+      }
+      renderTable();
+      renderSummary();
+    }
+
+    function renderSummary() {
+      const rows = state.filteredRows;
+      const count = (status) => rows.filter(r => String(r.status || '').toLowerCase() === status).length;
+      els.totalRecords.value = rows.length;
+      els.countActive.value = count('active');
+      els.countBlock.value = count('block');
+      els.countStandby.value = count('standby');
+      els.countVerified.value = count('verified');
+      els.countProblem.value = count('problem');
+    }
+
+    function renderTable() {
+      if (!state.filteredRows.length) {
+        els.tableBody.innerHTML = `
+          <tr>
+            <td colspan="19">No records found.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      els.tableBody.innerHTML = state.filteredRows.map(row => `
+        <tr>
+          <td>${escapeHtml(row.id || '')}</td>
+          <td>${escapeHtml(row.bankType || '')}</td>
+          <td>${escapeHtml(row.ownerName || '')}</td>
+          <td><span class="chip account-type">${escapeHtml((row.accountType || '').toUpperCase())}</span></td>
+          <td>${escapeHtml(row.accessCode || '')}</td>
+          <td>${escapeHtml(row.password || '')}</td>
+          <td>${escapeHtml(row.pinCode || '')}</td>
+          <td>${escapeHtml(row.dob || '')}</td>
+          <td>${escapeHtml(row.phoneNo || '')}</td>
+          <td><span class="chip account-col">${escapeHtml((row.account || '').toUpperCase())}</span></td>
+          <td><span class="chip ${getTelegramClass(row.telegram)}">${escapeHtml((row.telegram || '').toUpperCase())}</span></td>
+          <td><span class="chip ${getStatusClass(row.status)}">${escapeHtml((row.status || '').toUpperCase())}</span></td>
+          <td>${escapeHtml(row.whereField || '')}</td>
+          <td>${escapeHtml(row.date || '')}</td>
+          <td>${escapeHtml(row.receivedBy || '')}</td>
+          <td>${escapeHtml(row.dateBlock || '')}</td>
+          <td>${escapeHtml(row.amountBlocked || '')}</td>
+          <td>${escapeHtml(row.remarks || '')}</td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-secondary btn-small" onclick="startEdit('${escapeHtml(row.id)}')">Edit</button>
+              <button class="btn btn-danger btn-small" onclick="removeRow('${escapeHtml(row.id)}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    window.startEdit = function(id) {
+      const row = state.rows.find(item => String(item.id) === String(id));
+      if (!row) return;
+      openModal(true, row);
+    };
+
+    window.removeRow = async function(id) {
+      const row = state.rows.find(item => String(item.id) === String(id));
+      if (!row) return;
+      const ok = confirm(`Delete record for ${row.ownerName}?`);
+      if (!ok) return;
+
+      try {
+        await apiRequest('deleteRecord', { id });
+        await loadRows();
+      } catch (error) {
+        alert('Delete failed. ' + error.message);
+      }
+    };
+
+    async function saveRecord(event) {
+      event.preventDefault();
+      const payload = getFormData();
+      try {
+        const action = payload.id ? 'updateRecord' : 'addRecord';
+        await apiRequest(action, payload);
+        closeModal();
+        await loadRows();
+      } catch (error) {
+        alert('Save failed. ' + error.message);
+      }
+    }
+
+    function bindEvents() {
+      els.unlockBtn.addEventListener('click', handleUnlock);
+      els.sitePassword.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleUnlock();
+      });
+      els.openCreateModalBtn.addEventListener('click', () => openModal(false));
+      els.closeModalBtn.addEventListener('click', closeModal);
+      els.cancelModalBtn.addEventListener('click', closeModal);
+      els.recordModalBackdrop.addEventListener('click', (e) => {
+        if (e.target === els.recordModalBackdrop) closeModal();
+      });
+      els.recordForm.addEventListener('submit', saveRecord);
+      els.searchInput.addEventListener('input', applySearch);
+      els.refreshBtn.addEventListener('click', loadRows);
+    }
+
+  function init() {
+  populateSelect('bankType', OPTIONS.bankType);
+  populateSelect('accountType', OPTIONS.accountType);
+  populateSelect('telegram', OPTIONS.telegram);
+  populateSelect('status', OPTIONS.status);
+  bindEvents();
+
+  if (sessionStorage.getItem('trackerUnlocked') === 'yes') {
+    state.unlocked = true;
+    showApp();
+    loadRows();
+  }
+}
+
+    init();
+  </script>
+</body>
+</html>
