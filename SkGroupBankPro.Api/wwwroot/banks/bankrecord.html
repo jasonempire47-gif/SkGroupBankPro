@@ -384,6 +384,7 @@
             <tr>
               <th>ID</th>
               <th>Bank Type</th>
+              <th>Bank Department</th>
               <th>Owner's Name</th>
               <th>Account Type</th>
               <th>Access Code</th>
@@ -422,6 +423,10 @@
             <div class="field">
   <label for="bankType">Bank Type</label>
   <select id="bankType" name="bankType" required></select>
+</div>
+<div class="field">
+  <label for="bankDepartment">Bank Department</label>
+  <select id="bankDepartment" name="bankDepartment" required></select>
 </div>
             <div class="field">
               <label for="ownerName">Owner's Name</label>
@@ -557,6 +562,7 @@ const OPTIONS = {
     'MY STATE',
     'AUSWIDE'
   ],
+  bankDepartment: ['JESS', 'DAVE', 'CELINE'],
   accountType: ['ghost', 'owner', 'agent'],
   telegram: ['banker', 'sophie'],
   status: [
@@ -670,6 +676,7 @@ const OPTIONS = {
       state.editingId = row.id;
       els.recordId.value = row.id || '';
       document.getElementById('bankType').value = row.bankType || '';
+      document.getElementById('bankDepartment').value = row.bankDepartment || '';
       document.getElementById('ownerName').value = row.ownerName || '';
       document.getElementById('accountType').value = row.accountType || '';
       document.getElementById('accessCode').value = row.accessCode || '';
@@ -692,10 +699,11 @@ const OPTIONS = {
       els.recordModalBackdrop.style.display = 'none';
     }
 
-  function getFormData() {
+function getFormData() {
   return {
     id: els.recordId.value || '',
     bankType: document.getElementById('bankType').value,
+    bankDepartment: document.getElementById('bankDepartment').value,
     ownerName: document.getElementById('ownerName').value.trim(),
     accountType: document.getElementById('accountType').value,
     accessCode: document.getElementById('accessCode').value.trim(),
@@ -785,7 +793,7 @@ const OPTIONS = {
       if (!state.filteredRows.length) {
         els.tableBody.innerHTML = `
           <tr>
-            <td colspan="19">No records found.</td>
+            <td colspan="20">No records found.</td>
           </tr>
         `;
         return;
@@ -795,16 +803,17 @@ const OPTIONS = {
         <tr>
           <td>${escapeHtml(row.id || '')}</td>
           <td>${escapeHtml(row.bankType || '')}</td>
+          <td>${escapeHtml(row.bankDepartment || '')}</td>
           <td>${escapeHtml(row.ownerName || '')}</td>
-          <td><span class="chip account-type">${escapeHtml((row.accountType || '').toUpperCase())}</span></td>
+          <td><span class="chip account-type">${escapeHtml(String(row.accountType || '').toUpperCase())}</span></td>
           <td>${escapeHtml(row.accessCode || '')}</td>
           <td>${escapeHtml(row.password || '')}</td>
           <td>${escapeHtml(row.pinCode || '')}</td>
           <td>${escapeHtml(row.dob || '')}</td>
           <td>${escapeHtml(row.phoneNo || '')}</td>
-          <td><span class="chip account-col">${escapeHtml((row.account || '').toUpperCase())}</span></td>
-          <td><span class="chip ${getTelegramClass(row.telegram)}">${escapeHtml((row.telegram || '').toUpperCase())}</span></td>
-          <td><span class="chip ${getStatusClass(row.status)}">${escapeHtml((row.status || '').toUpperCase())}</span></td>
+          <td><span class="chip account-col">${escapeHtml(String(row.account || '').toUpperCase())}</span></td>
+<td><span class="chip ${getTelegramClass(row.telegram)}">${escapeHtml(String(row.telegram || '').toUpperCase())}</span></td>
+<td><span class="chip ${getStatusClass(row.status)}">${escapeHtml(String(row.status || '').toUpperCase())}</span></td>
           <td>${escapeHtml(row.whereField || '')}</td>
           <td>${escapeHtml(row.date || '')}</td>
           <td>${escapeHtml(row.receivedBy || '')}</td>
@@ -872,6 +881,7 @@ const OPTIONS = {
 
   function init() {
   populateSelect('bankType', OPTIONS.bankType);
+  populateSelect('bankDepartment', OPTIONS.bankDepartment);
   populateSelect('accountType', OPTIONS.accountType);
   populateSelect('telegram', OPTIONS.telegram);
   populateSelect('status', OPTIONS.status);
