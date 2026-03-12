@@ -11,7 +11,7 @@ if (!$input) {
     exit;
 }
 
-$spinPortalUrl = "https://skgroup.xyz/spin/api/wallet_sync.php";
+$spinPortalUrl = "https://skgroup.xyz/spin/api/sync_wallet.php";
 $apiToken = "YOUR_SECRET_API_TOKEN";
 
 $payload = [
