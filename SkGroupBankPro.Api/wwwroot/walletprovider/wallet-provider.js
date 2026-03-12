@@ -4,7 +4,7 @@
   // =========================
   // CONFIG
   // =========================
-  const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbyLCzKjP3JGMwTqdWS-8gOPdsqt3kFwscrjvAZN3zGed9_60-vx5G18bRf5JlIbQuhDfw/exec";
+  const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
   const SPIN_SYNC_URL = "./api/sync_wallet.php";
 
   // =========================
