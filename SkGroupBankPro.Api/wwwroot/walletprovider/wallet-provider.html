@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SK GROUP BANKPRO - Wallet Provider</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="./wallet-provider.js?v=1" defer></script>
+</head>
+
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="brandLogo" src="./assets/logo.png" alt="Logo" />
+      <div style="margin-top:10px; color:#fff; font-weight:700; font-size:14px;">
+        Wallet Provider
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="card tableCard">
+
+      <div class="tableHeader">
+        <div>
+          <div class="tableTitle">Wallet Provider Management</div>
+          <div class="mutedSmall">Independent wallet system for spin portal integration</div>
+        </div>
+
+        <div class="tableActions" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <input id="search" type="text" placeholder="Search name / phone / wallet ID / website">
+          <button class="btn ghost" id="btnRefresh" type="button">Refresh</button>
+          <button class="btn ghost" id="btnSyncAll" type="button">Sync All</button>
+        </div>
+      </div>
+
+      <div style="padding:14px;">
+        <form id="customerForm" style="display:grid; gap:14px; max-width:1100px;">
+          <input type="hidden" id="editId">
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;">
+            <div>
+              <div class="mutedSmall">Customer Name</div>
+              <input id="name" type="text" required>
+            </div>
+
+            <div>
+              <div class="mutedSmall">Phone Number</div>
+              <input id="phone" type="tel" required>
+            </div>
+
+            <div>
+              <div class="mutedSmall">Website</div>
+              <input id="website" type="text" placeholder="example.com">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Group</div>
+              <input id="group" type="text" placeholder="VIP / Agent / Regular">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;">
+            <div>
+              <div class="mutedSmall">Wallet ID</div>
+              <input id="walletId" type="text" required placeholder="WALLET-10001">
+            </div>
+
+            <div>
+              <div class="mutedSmall">External Player ID</div>
+              <input id="playerId" type="text" placeholder="SPIN-PLAYER-001">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Portal Username</div>
+              <input id="portalUsername" type="text" placeholder="Optional">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Status</div>
+              <select id="status">
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="suspended">Suspended</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;">
+            <div>
+              <div class="mutedSmall">Cash Balance</div>
+              <input id="cashBalance" type="number" step="0.01" min="0" value="0">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Spin Token Balance</div>
+              <input id="tokenBalance" type="number" step="1" min="0" value="0">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Deposit Amount</div>
+              <input id="depositAmount" type="number" step="0.01" min="0" value="0">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Conversion Rule</div>
+              <select id="conversionRule">
+                <option value="100=1">100 = 1 Spin</option>
+                <option value="200=1">200 = 1 Spin</option>
+                <option value="500=1">500 = 1 Spin</option>
+                <option value="1000=1">1000 = 1 Spin</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;">
+            <div>
+              <div class="mutedSmall">Auto-Calculated Spin Tokens</div>
+              <input id="calculatedTokens" type="number" value="0" readonly>
+            </div>
+
+            <div>
+              <div class="mutedSmall">Last Sync</div>
+              <input id="lastSync" type="text" readonly placeholder="Not synced yet">
+            </div>
+
+            <div>
+              <div class="mutedSmall">API Reference</div>
+              <input id="apiReference" type="text" placeholder="Optional transaction/API ref">
+            </div>
+
+            <div>
+              <div class="mutedSmall">Remarks</div>
+              <input id="remarks" type="text" placeholder="Notes / special instruction">
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <button class="btn" id="btnSave" type="submit">Save Wallet</button>
+            <button class="btn ghost" type="button" id="btnTopup">Top Up</button>
+            <button class="btn ghost" type="button" id="btnConvert">Convert to Spin Token</button>
+            <button class="btn ghost" type="button" id="btnSyncPlayer">Sync to Spin Portal</button>
+            <button class="btn ghost" type="button" id="btnCancelEdit" hidden>Cancel</button>
+            <div id="statusMsg" class="mutedSmall"></div>
+          </div>
+        </form>
+      </div>
+
+      <div class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Wallet ID</th>
+              <th>Player ID</th>
+              <th>Cash</th>
+              <th>Spin Tokens</th>
+              <th>Status</th>
+              <th>Last Sync</th>
+              <th class="center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div style="padding:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div class="mutedSmall" id="countLabel">0 wallet record(s)</div>
+        <div class="mutedSmall">Independent wallet provider system linked through API to spin portal</div>
+      </div>
+
+    </section>
+  </main>
+
+</div>
+</body>
+</html>

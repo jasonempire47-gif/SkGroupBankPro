@@ -191,7 +191,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1700px;
+      min-width: 1900px;
     }
 
     thead th {
@@ -304,8 +304,6 @@
       grid-column: 1 / -1;
     }
 
-    .hidden { display: none !important; }
-
     @media (max-width: 720px) {
       .toolbar {
         align-items: stretch;
@@ -342,7 +340,7 @@
     <div class="toolbar">
       <h2>Account Tracker Dashboard</h2>
       <div class="toolbar-actions">
-        <input class="field search-box" id="searchInput" placeholder="Search name, status, telegram, access code..." />
+        <input class="field search-box" id="searchInput" placeholder="Search bank, owner, payid, email, status..." />
         <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
         <button class="btn btn-primary" id="openCreateModalBtn">Add New Record</button>
       </div>
@@ -387,11 +385,13 @@
               <th>Bank Department</th>
               <th>Owner's Name</th>
               <th>Account Type</th>
-              <th>Access Code</th>
               <th>Password</th>
               <th>PIN Code</th>
               <th>DOB</th>
               <th>Phone No.</th>
+              <th>PayID</th>
+              <th>BSB and Account Number</th>
+              <th>Email</th>
               <th>Account</th>
               <th>Telegram</th>
               <th>Status</th>
@@ -401,6 +401,7 @@
               <th>Date Block</th>
               <th>Amount Blocked</th>
               <th>Remarks</th>
+              <th>Company</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -421,13 +422,15 @@
           <input type="hidden" id="recordId" />
           <div class="modal-grid">
             <div class="field">
-  <label for="bankType">Bank Type</label>
-  <select id="bankType" name="bankType" required></select>
-</div>
-<div class="field">
-  <label for="bankDepartment">Bank Department</label>
-  <select id="bankDepartment" name="bankDepartment" required></select>
-</div>
+              <label for="bankType">Bank Type</label>
+              <select id="bankType" name="bankType" required></select>
+            </div>
+
+            <div class="field">
+              <label for="bankDepartment">Bank Department</label>
+              <select id="bankDepartment" name="bankDepartment" required></select>
+            </div>
+
             <div class="field">
               <label for="ownerName">Owner's Name</label>
               <input id="ownerName" name="ownerName" required />
@@ -436,11 +439,6 @@
             <div class="field">
               <label for="accountType">Account Type</label>
               <select id="accountType" name="accountType" required></select>
-            </div>
-
-            <div class="field">
-              <label for="accessCode">Device Code</label>
-              <input id="accessCode" name="accessCode" required />
             </div>
 
             <div class="field">
@@ -464,8 +462,23 @@
             </div>
 
             <div class="field">
+              <label for="payId">PayID</label>
+              <input id="payId" name="payId" />
+            </div>
+
+            <div class="field">
+              <label for="bsbAccountNumber">BSB and Account Number</label>
+              <input id="bsbAccountNumber" name="bsbAccountNumber" />
+            </div>
+
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" />
+            </div>
+
+            <div class="field">
               <label for="account">Account</label>
-              <input id="account" name="account" value="OWNER" placeholder="Example: OWNER" />
+              <select id="account" name="account" required></select>
             </div>
 
             <div class="field">
@@ -507,6 +520,11 @@
               <label for="remarks">Remarks</label>
               <textarea id="remarks" name="remarks" placeholder="Remarks"></textarea>
             </div>
+
+            <div class="field full-span">
+              <label for="company">Company</label>
+              <input id="company" name="company" />
+            </div>
           </div>
         </form>
       </div>
@@ -518,62 +536,55 @@
   </div>
 
   <script>
-    /*
-      =============================
-      CONFIGURATION
-      =============================
-      1. Replace WEB_APP_URL with your deployed Google Apps Script web app URL.
-      2. Replace APP_PASSWORD with your chosen website password.
-      3. Optional: replace API_SECRET with the same secret you put in Apps Script.
-    */
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzFrL5z5qvYbJ22aMauPNLiwROzef6bTMivdYFIekkYICJCsNPVGb6u-qFLvGJ9xKk8/exec';
     const APP_PASSWORD = '123456';
     const API_SECRET = 'sk-bankrecord123456789';
 
-const OPTIONS = {
-  bankType: [
-    'ING',
-    'UBANK',
-    'STG',
-    'NAB',
-    "PEOPLE'S CHOICE",
-    'ANZ',
-    'WESTPAC',
-    'BANKWEST',
-    'HSBC',
-    'E-HERO',
-    'GSB',
-    'CBA',
-    'UPBANK',
-    'MYBOQ',
-    'BOM',
-    'BCU/SOLOMYOB',
-    'NPBS',
-    'MEGO',
-    'BENDIGO',
-    'BEYOND BANK',
-    'VIRGIN MONEY',
-    'BANK FIRST',
-    'SUNSCORP',
-    'HUME',
-    'HERITAGE',
-    'BANKSA',
-    'QCB',
-    'MY STATE',
-    'AUSWIDE'
-  ],
-  bankDepartment: ['JESS', 'DAVE', 'CELINE'],
-  accountType: ['ghost', 'owner', 'agent'],
-  telegram: ['banker', 'sophie', 'drake', 'celine', 'maddie' , 'kennedy'],
-  status: [
-    'block',
-    'active',
-    'standby',
-    'problem',
-    'verified',
-    'return to owner change details'
-  ]
-};
+    const OPTIONS = {
+      bankType: [
+        'ING',
+        'UBANK',
+        'STG',
+        'NAB',
+        "PEOPLE'S CHOICE",
+        'ANZ',
+        'WESTPAC',
+        'BANKWEST',
+        'HSBC',
+        'E-HERO',
+        'GSB',
+        'CBA',
+        'UPBANK',
+        'MYBOQ',
+        'BOM',
+        'BCU/SOLOMYOB',
+        'NPBS',
+        'MEGO',
+        'BENDIGO',
+        'BEYOND BANK',
+        'VIRGIN MONEY',
+        'BANK FIRST',
+        'SUNSCORP',
+        'HUME',
+        'HERITAGE',
+        'BANKSA',
+        'QCB',
+        'MY STATE',
+        'AUSWIDE'
+      ],
+      bankDepartment: ['JESS', 'DAVE', 'CELINE'],
+      accountType: ['PERSONAL', 'BUSINESS'],
+      account: ['AGENT', 'OWNER'],
+      telegram: ['banker', 'sophie'],
+      status: [
+        'block',
+        'active',
+        'standby',
+        'problem',
+        'verified',
+        'return to owner change details'
+      ]
+    };
 
     const state = {
       rows: [],
@@ -608,7 +619,9 @@ const OPTIONS = {
 
     function populateSelect(selectId, options) {
       const select = document.getElementById(selectId);
-      select.innerHTML = '<option value="">Select</option>' + options.map(option => `\n        <option value="${escapeHtml(option)}">${escapeHtml(capitalizeWords(option))}</option>`).join('');
+      select.innerHTML =
+        '<option value="">Select</option>' +
+        options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(capitalizeWords(option))}</option>`).join('');
     }
 
     function capitalizeWords(text) {
@@ -666,6 +679,7 @@ const OPTIONS = {
     function openModal(editMode = false, row = null) {
       els.modalTitle.textContent = editMode ? 'Edit Record' : 'Add New Record';
       els.recordModalBackdrop.style.display = 'flex';
+
       if (!editMode) {
         state.editingId = null;
         els.recordForm.reset();
@@ -673,17 +687,20 @@ const OPTIONS = {
         document.getElementById('account').value = 'OWNER';
         return;
       }
+
       state.editingId = row.id;
       els.recordId.value = row.id || '';
       document.getElementById('bankType').value = row.bankType || '';
       document.getElementById('bankDepartment').value = row.bankDepartment || '';
       document.getElementById('ownerName').value = row.ownerName || '';
       document.getElementById('accountType').value = row.accountType || '';
-      document.getElementById('accessCode').value = row.accessCode || '';
       document.getElementById('password').value = row.password || '';
       document.getElementById('pinCode').value = row.pinCode || '';
       document.getElementById('dob').value = row.dob || '';
       document.getElementById('phoneNo').value = row.phoneNo || '';
+      document.getElementById('payId').value = row.payId || '';
+      document.getElementById('bsbAccountNumber').value = row.bsbAccountNumber || '';
+      document.getElementById('email').value = row.email || '';
       document.getElementById('account').value = row.account || '';
       document.getElementById('telegram').value = row.telegram || '';
       document.getElementById('status').value = row.status || '';
@@ -693,35 +710,39 @@ const OPTIONS = {
       document.getElementById('dateBlock').value = row.dateBlock || '';
       document.getElementById('amountBlocked').value = row.amountBlocked || '';
       document.getElementById('remarks').value = row.remarks || '';
+      document.getElementById('company').value = row.company || '';
     }
 
     function closeModal() {
       els.recordModalBackdrop.style.display = 'none';
     }
 
-function getFormData() {
-  return {
-    id: els.recordId.value || '',
-    bankType: document.getElementById('bankType').value,
-    bankDepartment: document.getElementById('bankDepartment').value,
-    ownerName: document.getElementById('ownerName').value.trim(),
-    accountType: document.getElementById('accountType').value,
-    accessCode: document.getElementById('accessCode').value.trim(),
-    password: document.getElementById('password').value.trim(),
-    pinCode: document.getElementById('pinCode').value.trim(),
-    dob: document.getElementById('dob').value.trim(),
-    phoneNo: document.getElementById('phoneNo').value.trim(),
-    account: document.getElementById('account').value.trim(),
-    telegram: document.getElementById('telegram').value,
-    status: document.getElementById('status').value,
-    whereField: document.getElementById('whereField').value.trim(),
-    date: document.getElementById('date').value.trim(),
-    receivedBy: document.getElementById('receivedBy').value.trim(),
-    dateBlock: document.getElementById('dateBlock').value.trim(),
-    amountBlocked: document.getElementById('amountBlocked').value.trim(),
-    remarks: document.getElementById('remarks').value.trim()
-  };
-}
+    function getFormData() {
+      return {
+        id: els.recordId.value || '',
+        bankType: document.getElementById('bankType').value,
+        bankDepartment: document.getElementById('bankDepartment').value,
+        ownerName: document.getElementById('ownerName').value.trim(),
+        accountType: document.getElementById('accountType').value,
+        password: document.getElementById('password').value.trim(),
+        pinCode: document.getElementById('pinCode').value.trim(),
+        dob: document.getElementById('dob').value.trim(),
+        phoneNo: document.getElementById('phoneNo').value.trim(),
+        payId: document.getElementById('payId').value.trim(),
+        bsbAccountNumber: document.getElementById('bsbAccountNumber').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        account: document.getElementById('account').value,
+        telegram: document.getElementById('telegram').value,
+        status: document.getElementById('status').value,
+        whereField: document.getElementById('whereField').value.trim(),
+        date: document.getElementById('date').value.trim(),
+        receivedBy: document.getElementById('receivedBy').value.trim(),
+        dateBlock: document.getElementById('dateBlock').value.trim(),
+        amountBlocked: document.getElementById('amountBlocked').value.trim(),
+        remarks: document.getElementById('remarks').value.trim(),
+        company: document.getElementById('company').value.trim()
+      };
+    }
 
     async function apiRequest(action, payload = {}) {
       if (!WEB_APP_URL || WEB_APP_URL.includes('PASTE_YOUR')) {
@@ -749,6 +770,7 @@ function getFormData() {
       if (!json.success) {
         throw new Error(json.message || 'Request failed.');
       }
+
       return json;
     }
 
@@ -770,9 +792,9 @@ function getFormData() {
       if (!q) {
         state.filteredRows = [...state.rows];
       } else {
-        state.filteredRows = state.rows.filter(row => {
-          return Object.values(row).some(value => String(value || '').toLowerCase().includes(q));
-        });
+        state.filteredRows = state.rows.filter(row =>
+          Object.values(row).some(value => String(value || '').toLowerCase().includes(q))
+        );
       }
       renderTable();
       renderSummary();
@@ -780,7 +802,8 @@ function getFormData() {
 
     function renderSummary() {
       const rows = state.filteredRows;
-      const count = (status) => rows.filter(r => String(r.status || '').toLowerCase() === status).length;
+      const count = status => rows.filter(r => String(r.status || '').toLowerCase() === status).length;
+
       els.totalRecords.value = rows.length;
       els.countActive.value = count('active');
       els.countBlock.value = count('block');
@@ -793,7 +816,7 @@ function getFormData() {
       if (!state.filteredRows.length) {
         els.tableBody.innerHTML = `
           <tr>
-            <td colspan="20">No records found.</td>
+            <td colspan="23">No records found.</td>
           </tr>
         `;
         return;
@@ -806,20 +829,23 @@ function getFormData() {
           <td>${escapeHtml(row.bankDepartment || '')}</td>
           <td>${escapeHtml(row.ownerName || '')}</td>
           <td><span class="chip account-type">${escapeHtml(String(row.accountType || '').toUpperCase())}</span></td>
-          <td>${escapeHtml(row.accessCode || '')}</td>
           <td>${escapeHtml(row.password || '')}</td>
           <td>${escapeHtml(row.pinCode || '')}</td>
           <td>${escapeHtml(row.dob || '')}</td>
           <td>${escapeHtml(row.phoneNo || '')}</td>
+          <td>${escapeHtml(row.payId || '')}</td>
+          <td>${escapeHtml(row.bsbAccountNumber || '')}</td>
+          <td>${escapeHtml(row.email || '')}</td>
           <td><span class="chip account-col">${escapeHtml(String(row.account || '').toUpperCase())}</span></td>
-<td><span class="chip ${getTelegramClass(row.telegram)}">${escapeHtml(String(row.telegram || '').toUpperCase())}</span></td>
-<td><span class="chip ${getStatusClass(row.status)}">${escapeHtml(String(row.status || '').toUpperCase())}</span></td>
+          <td><span class="chip ${getTelegramClass(row.telegram)}">${escapeHtml(String(row.telegram || '').toUpperCase())}</span></td>
+          <td><span class="chip ${getStatusClass(row.status)}">${escapeHtml(String(row.status || '').toUpperCase())}</span></td>
           <td>${escapeHtml(row.whereField || '')}</td>
           <td>${escapeHtml(row.date || '')}</td>
           <td>${escapeHtml(row.receivedBy || '')}</td>
           <td>${escapeHtml(row.dateBlock || '')}</td>
           <td>${escapeHtml(row.amountBlocked || '')}</td>
           <td>${escapeHtml(row.remarks || '')}</td>
+          <td>${escapeHtml(row.company || '')}</td>
           <td>
             <div class="actions">
               <button class="btn btn-secondary btn-small" onclick="startEdit('${escapeHtml(row.id)}')">Edit</button>
@@ -839,6 +865,7 @@ function getFormData() {
     window.removeRow = async function(id) {
       const row = state.rows.find(item => String(item.id) === String(id));
       if (!row) return;
+
       const ok = confirm(`Delete record for ${row.ownerName}?`);
       if (!ok) return;
 
@@ -853,6 +880,7 @@ function getFormData() {
     async function saveRecord(event) {
       event.preventDefault();
       const payload = getFormData();
+
       try {
         const action = payload.id ? 'updateRecord' : 'addRecord';
         await apiRequest(action, payload);
@@ -879,20 +907,21 @@ function getFormData() {
       els.refreshBtn.addEventListener('click', loadRows);
     }
 
-  function init() {
-  populateSelect('bankType', OPTIONS.bankType);
-  populateSelect('bankDepartment', OPTIONS.bankDepartment);
-  populateSelect('accountType', OPTIONS.accountType);
-  populateSelect('telegram', OPTIONS.telegram);
-  populateSelect('status', OPTIONS.status);
-  bindEvents();
+    function init() {
+      populateSelect('bankType', OPTIONS.bankType);
+      populateSelect('bankDepartment', OPTIONS.bankDepartment);
+      populateSelect('accountType', OPTIONS.accountType);
+      populateSelect('account', OPTIONS.account);
+      populateSelect('telegram', OPTIONS.telegram);
+      populateSelect('status', OPTIONS.status);
+      bindEvents();
 
-  if (sessionStorage.getItem('trackerUnlocked') === 'yes') {
-    state.unlocked = true;
-    showApp();
-    loadRows();
-  }
-}
+      if (sessionStorage.getItem('trackerUnlocked') === 'yes') {
+        state.unlocked = true;
+        showApp();
+        loadRows();
+      }
+    }
 
     init();
   </script>
