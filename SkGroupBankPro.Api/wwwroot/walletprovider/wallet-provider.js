@@ -5,7 +5,7 @@
   // CONFIG
   // =========================
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
-  const SPIN_SYNC_URL = "./api/sync_wallet.php";
+  const SPIN_SYNC_URL = "https://skgroup.xyz/walletprovider/api/sync_wallet.php";
 
   // =========================
   // ELEMENTS
