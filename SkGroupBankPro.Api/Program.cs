@@ -13,7 +13,7 @@ using SkGroupBankpro.Api.Services.WalletProviders.K3o58k;
 using SkGroupBankpro.Api.Utilities;
 using System.Text;
 
-// ✅ Lucky Wheel Service namespace (if WheelService is in SkGroupBankpro.Api root)
+// ✅ Lucky Wheel Service namespace
 using SkGroupBankpro.Api;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,8 +28,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
-/* ---------------- ✅ GENERAL HTTP CLIENT ---------------- */
-// Needed for wallet provider sync controller and other outbound HTTP calls
+/* ---------------- HTTP CLIENT ---------------- */
 builder.Services.AddHttpClient();
 
 /* ---------------- SWAGGER + JWT ---------------- */
@@ -75,24 +74,22 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordHasher>();
 
+// ✅ Wallet provider test memory store
+builder.Services.AddSingleton<WalletProviderMemoryStore>();
+
 // ✅ Lucky Wheel (server-controlled)
 builder.Services.AddSingleton<WheelService>();
 
 // ✅ SignalR realtime
 builder.Services.AddSignalR();
 
-// ✅ Auto rebates background service (daily rebate cron)
+// ✅ Auto rebates background service
 builder.Services.AddHostedService<AutoRebateService>();
 
-// ✅ Auto-create DailyWinLoss from transactions (cashflow proxy)
+// ✅ Auto-create DailyWinLoss from transactions
 builder.Services.AddHostedService<TransactionWinLossSyncService>();
 
 /* ---------------- ✅ K3O58K WALLET PROVIDER ---------------- */
-// appsettings.json:
-// "WalletProviders": { "K3o58k": { "BaseUrl": "https://k3o58k.com/api/v1/", "AccessId": "", "AccessToken": "", "TimeoutSeconds": 20 } }
-// Render env vars:
-// WalletProviders__K3o58k__AccessId
-// WalletProviders__K3o58k__AccessToken
 builder.Services.Configure<K3o58kOptions>(builder.Configuration.GetSection("WalletProviders:K3o58k"));
 
 builder.Services.AddHttpClient<K3o58kClient>((sp, http) =>
@@ -102,13 +99,11 @@ builder.Services.AddHttpClient<K3o58kClient>((sp, http) =>
     if (string.IsNullOrWhiteSpace(opt.BaseUrl))
         throw new InvalidOperationException("WalletProviders:K3o58k:BaseUrl is missing.");
 
-    // ✅ IMPORTANT: BaseUrl must be folder root, NOT index.php
-    // Example: https://k3o58k.com/api/v1/
     http.BaseAddress = new Uri(opt.BaseUrl);
     http.Timeout = TimeSpan.FromSeconds(Math.Clamp(opt.TimeoutSeconds, 5, 60));
 });
 
-// ✅ Wallet service + generic gateway (optional controller uses this)
+// ✅ Wallet service + generic gateway
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<K3o58kGateway>();
 
@@ -134,7 +129,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
 
-        // ✅ Allow SignalR token via query string: ?access_token=...
         opt.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -142,11 +136,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var path = context.HttpContext.Request.Path;
                 var accessToken = context.Request.Query["access_token"];
 
-                // Existing dashboard hub
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/dashboard"))
                     context.Token = accessToken!;
 
-                // ✅ live events hub
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/liveevents"))
                     context.Token = accessToken!;
 
@@ -191,23 +183,14 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseHttpsRedirection();
-
-// ✅ Needed for wheel UI files under wwwroot/events/*
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseCors("AllowFrontend");
-
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Existing hub
 app.MapHub<DashboardHub>("/hubs/dashboard");
-
-// ✅ Live events hub
 app.MapHub<LiveEventsHub>("/hubs/liveevents");
 
 /* ---------------- SEED + ENSURE DB ---------------- */
@@ -218,7 +201,6 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
 
-    // ✅ Cleanup bad DailyWinLoss records
     var cutoff = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     var badDaily = await db.DailyWinLosses.Where(x => x.DateUtc < cutoff).ToListAsync();
     if (badDaily.Count > 0)
@@ -227,7 +209,6 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 
-    // ✅ FORCE: ensure admin exists and ALWAYS reset password to admin123
     var admin = await db.Users.FirstOrDefaultAsync(u => u.Username == "admin");
     if (admin == null)
     {
@@ -247,7 +228,6 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
 
-    // ✅ Seed Game Types (only if empty)
     if (!await db.GameTypes.AnyAsync())
     {
         db.GameTypes.AddRange(
