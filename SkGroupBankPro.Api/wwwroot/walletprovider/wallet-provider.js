@@ -5,7 +5,7 @@
   // CONFIG
   // =========================
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
-  const SPIN_SYNC_URL = "https://skgroup.xyz/walletprovider/api/sync_wallet.php";
+  const SPIN_SYNC_URL = "/api/walletprovider/sync";
 
   // =========================
   // ELEMENTS
@@ -266,27 +266,6 @@
     };
   }
 
-  function mapRecordToSpinPayload(record) {
-    return {
-      wallet_id: record.walletId,
-      player_id: record.playerId,
-      name: record.name,
-      phone: record.phone,
-      website: record.website,
-      group_name: record.group,
-      portal_username: record.portalUsername,
-      status: record.status,
-      cash_balance: toNumber(record.cashBalance),
-      spin_token_balance: formatInt(record.tokenBalance),
-      deposit_amount: toNumber(record.depositAmount),
-      conversion_rule: record.conversionRule,
-      converted_tokens: calculateTokens(record.depositAmount, record.conversionRule),
-      last_sync: record.lastSync || "",
-      api_reference: record.apiReference || "",
-      remarks: record.remarks || ""
-    };
-  }
-
   // =========================
   // GOOGLE SHEET API
   // =========================
@@ -347,7 +326,7 @@
   }
 
   // =========================
-  // SPIN PORTAL SYNC
+  // ASP.NET CORE SYNC
   // =========================
   async function syncToSpinPortal(record) {
     const response = await fetch(SPIN_SYNC_URL, {
@@ -355,7 +334,24 @@
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(mapRecordToSpinPayload(record))
+      body: JSON.stringify({
+        walletId: record.walletId,
+        playerId: record.playerId,
+        name: record.name,
+        phone: record.phone,
+        website: record.website,
+        groupName: record.group,
+        portalUsername: record.portalUsername,
+        status: record.status,
+        cashBalance: toNumber(record.cashBalance),
+        spinTokenBalance: formatInt(record.tokenBalance),
+        depositAmount: toNumber(record.depositAmount),
+        conversionRule: record.conversionRule,
+        convertedTokens: calculateTokens(record.depositAmount, record.conversionRule),
+        lastSync: record.lastSync || "",
+        apiReference: record.apiReference || "",
+        remarks: record.remarks || ""
+      })
     });
 
     const result = await response.json().catch(() => ({}));

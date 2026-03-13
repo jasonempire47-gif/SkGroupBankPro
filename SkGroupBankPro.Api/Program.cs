@@ -28,6 +28,10 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
+/* ---------------- ✅ GENERAL HTTP CLIENT ---------------- */
+// Needed for wallet provider sync controller and other outbound HTTP calls
+builder.Services.AddHttpClient();
+
 /* ---------------- SWAGGER + JWT ---------------- */
 builder.Services.AddSwaggerGen(c =>
 {
