@@ -48,14 +48,8 @@
     statusMsg: document.getElementById("statusMsg")
   };
 
-  // =========================
-  // STATE
-  // =========================
   let records = [];
 
-  // =========================
-  // INIT
-  // =========================
   initApp();
 
   async function initApp() {
@@ -64,9 +58,6 @@
     await loadRecordsFromSheet();
   }
 
-  // =========================
-  // EVENT BINDING
-  // =========================
   function bindEvents() {
     els.form.addEventListener("submit", handleSaveWallet);
     els.depositAmount.addEventListener("input", updateCalculatedTokens);
@@ -83,9 +74,6 @@
     els.tbody.addEventListener("click", handleTableAction);
   }
 
-  // =========================
-  // HELPERS
-  // =========================
   function generateId() {
     return "rec_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   }
@@ -266,9 +254,6 @@
     };
   }
 
-  // =========================
-  // GOOGLE SHEET API
-  // =========================
   async function fetchSheetRecords() {
     const response = await fetch(`${SHEET_API_URL}?action=list`, {
       method: "GET"
@@ -325,9 +310,6 @@
     return true;
   }
 
-  // =========================
-  // ASP.NET CORE SYNC
-  // =========================
   async function syncToSpinPortal(record) {
     const response = await fetch(SPIN_SYNC_URL, {
       method: "POST",
@@ -335,37 +317,26 @@
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        walletId: record.walletId,
         playerId: record.playerId,
+        username: record.portalUsername || record.playerId,
         name: record.name,
         phone: record.phone,
         website: record.website,
         groupName: record.group,
-        portalUsername: record.portalUsername,
-        status: record.status,
-        cashBalance: toNumber(record.cashBalance),
-        spinTokenBalance: formatInt(record.tokenBalance),
-        depositAmount: toNumber(record.depositAmount),
-        conversionRule: record.conversionRule,
-        convertedTokens: calculateTokens(record.depositAmount, record.conversionRule),
-        lastSync: record.lastSync || "",
-        apiReference: record.apiReference || "",
-        remarks: record.remarks || ""
+        currency: "AUD",
+        timezone: "Australia/Adelaide"
       })
     });
 
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok || !result.success) {
-      throw new Error(result.message || "Spin portal sync failed.");
+      throw new Error(result.message || "Wallet sync failed.");
     }
 
     return result;
   }
 
-  // =========================
-  // LOAD / REFRESH
-  // =========================
   async function loadRecordsFromSheet() {
     try {
       setStatus("Loading records from Google Sheet...");
@@ -386,9 +357,6 @@
     await loadRecordsFromSheet();
   }
 
-  // =========================
-  // MAIN ACTIONS
-  // =========================
   async function handleSaveWallet(event) {
     event.preventDefault();
     clearStatus();
@@ -567,9 +535,6 @@
     }
   }
 
-  // =========================
-  // TABLE ACTIONS
-  // =========================
   function handleTableAction(event) {
     const actionBtn = event.target.closest("[data-action]");
     if (!actionBtn) return;
@@ -679,9 +644,6 @@
     }
   }
 
-  // =========================
-  // RENDER
-  // =========================
   function renderTable() {
     const query = els.search.value.trim().toLowerCase();
 
@@ -748,9 +710,6 @@
     els.countLabel.textContent = `${filtered.length} wallet record(s)`;
   }
 
-  // =========================
-  // FORM RESET
-  // =========================
   function resetForm() {
     els.form.reset();
 
