@@ -342,42 +342,40 @@
   // WALLET PROVIDER SYNC
   // =========================
   async function syncToSpinPortal(record) {
-    const payload = {
-      playerId: record.playerId,
-      username: record.portalUsername || record.playerId,
-      name: record.name,
-      phone: record.phone,
-      website: record.website,
-      groupName: record.group,
-      currency: "AUD",
-      timezone: "Australia/Adelaide"
-    };
 
-    const response = await fetch(SPIN_SYNC_URL, {
-      method: "POST",
-      headers: getAuthHeaders(false),
-      body: JSON.stringify(payload)
-    });
+  const payload = {
+    accessId: "admin",
+    accessToken: "conciergegroup0808",
 
-    const rawText = await response.text();
-    let result = {};
+    playerId: record.playerId,
+    username: record.portalUsername || record.playerId,
+    name: record.name,
+    phone: record.phone,
+    website: record.website,
+    groupName: record.group,
+    currency: "AUD",
+    timezone: "Australia/Adelaide"
+  };
 
-    try {
-      result = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      result = { raw: rawText };
-    }
+  const response = await fetch(SPIN_SYNC_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
 
-    console.log("SYNC PAYLOAD:", payload);
-    console.log("SYNC RESPONSE STATUS:", response.status);
-    console.log("SYNC RESPONSE BODY:", result);
+  const result = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      throw new Error(result.message || result.error || `Wallet sync failed. HTTP ${response.status}`);
-    }
+  console.log("SYNC PAYLOAD:", payload);
+  console.log("SYNC RESPONSE:", result);
 
-    return result;
+  if (!response.ok || result.success === false) {
+    throw new Error(result.message || "Wallet sync failed.");
   }
+
+  return result;
+}
 
   // =========================
   // LOAD / REFRESH
