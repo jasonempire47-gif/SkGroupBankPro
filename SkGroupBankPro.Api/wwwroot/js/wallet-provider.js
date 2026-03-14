@@ -5,8 +5,8 @@
   // CONFIG
   // =========================
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
-  const SPIN_SYNC_URL = "https://skgroupbankpro-4.onrender.com/api/walletprovider/sync";
-  
+  const SPIN_SYNC_URL = "https://skgroupbankpro-4.onrender.com/swagger/wallet-provider.html";
+
   // =========================
   // ELEMENTS
   // =========================
@@ -48,8 +48,14 @@
     statusMsg: document.getElementById("statusMsg")
   };
 
+  // =========================
+  // STATE
+  // =========================
   let records = [];
 
+  // =========================
+  // INIT
+  // =========================
   initApp();
 
   async function initApp() {
@@ -58,6 +64,9 @@
     await loadRecordsFromSheet();
   }
 
+  // =========================
+  // EVENT BINDING
+  // =========================
   function bindEvents() {
     els.form.addEventListener("submit", handleSaveWallet);
     els.depositAmount.addEventListener("input", updateCalculatedTokens);
@@ -74,6 +83,9 @@
     els.tbody.addEventListener("click", handleTableAction);
   }
 
+  // =========================
+  // HELPERS
+  // =========================
   function generateId() {
     return "rec_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   }
@@ -254,6 +266,9 @@
     };
   }
 
+  // =========================
+  // GOOGLE SHEET API
+  // =========================
   async function fetchSheetRecords() {
     const response = await fetch(`${SHEET_API_URL}?action=list`, {
       method: "GET"
@@ -310,33 +325,39 @@
     return true;
   }
 
+  // =========================
+  // WALLET PROVIDER SYNC
+  // =========================
   async function syncToSpinPortal(record) {
-  const response = await fetch(SPIN_SYNC_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      playerId: record.playerId,
-      username: record.portalUsername || record.playerId,
-      name: record.name,
-      phone: record.phone,
-      website: record.website,
-      groupName: record.group,
-      currency: "AUD",
-      timezone: "Australia/Adelaide"
-    })
-  });
+    const response = await fetch(SPIN_SYNC_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        playerId: record.playerId,
+        username: record.portalUsername || record.playerId,
+        name: record.name,
+        phone: record.phone,
+        website: record.website,
+        groupName: record.group,
+        currency: "AUD",
+        timezone: "Australia/Adelaide"
+      })
+    });
 
-  const result = await response.json().catch(() => ({}));
+    const result = await response.json().catch(() => ({}));
 
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Wallet sync failed.");
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Wallet sync failed.");
+    }
+
+    return result;
   }
 
-  return result;
-}
-
+  // =========================
+  // LOAD / REFRESH
+  // =========================
   async function loadRecordsFromSheet() {
     try {
       setStatus("Loading records from Google Sheet...");
@@ -357,6 +378,9 @@
     await loadRecordsFromSheet();
   }
 
+  // =========================
+  // MAIN ACTIONS
+  // =========================
   async function handleSaveWallet(event) {
     event.preventDefault();
     clearStatus();
@@ -391,7 +415,7 @@
   async function handleTopUp() {
     clearStatus();
 
-    let record = getFormData();
+    const record = getFormData();
     const error = validateRecord(record);
     if (error) {
       setStatus(error, true);
@@ -428,7 +452,7 @@
   async function handleConvertDeposit() {
     clearStatus();
 
-    let record = getFormData();
+    const record = getFormData();
     const error = validateRecord(record);
     if (error) {
       setStatus(error, true);
@@ -471,7 +495,7 @@
   async function handleSyncCurrentPlayer() {
     clearStatus();
 
-    let record = getFormData();
+    const record = getFormData();
     const error = validateRecord(record);
     if (error) {
       setStatus(error, true);
@@ -494,47 +518,50 @@
       await loadRecordsFromSheet();
       populateFormForEdit(record);
 
-      setStatus("Player synced to spin portal successfully.");
+      setStatus("Player synced successfully.");
     } catch (err) {
       console.error(err);
-      setStatus(err.message || "Failed to sync player to spin portal.", true);
+      setStatus(err.message || "Failed to sync player.", true);
     }
   }
 
   async function handleSyncAll() {
-  clearStatus();
+    clearStatus();
 
-  if (!records.length) {
-    setStatus("No wallet records to sync.", true);
-    return;
-  }
+    if (!records.length) {
+      setStatus("No wallet records to sync.", true);
+      return;
+    }
 
-  let successCount = 0;
-  let failCount = 0;
+    let successCount = 0;
+    let failCount = 0;
 
-  for (const current of records) {
-    try {
-      const record = { ...current };
-      await syncToSpinPortal(record);
-      record.lastSync = nowString();
-      record.updatedAt = nowString();
-      await saveSheetRecord(record);
-      successCount++;
-    } catch (error) {
-      console.error("Sync failed for record:", current.walletId, error);
-      failCount++;
+    for (const current of records) {
+      try {
+        const record = { ...current };
+        await syncToSpinPortal(record);
+        record.lastSync = nowString();
+        record.updatedAt = nowString();
+        await saveSheetRecord(record);
+        successCount++;
+      } catch (error) {
+        console.error("Sync failed for record:", current.walletId, error);
+        failCount++;
+      }
+    }
+
+    await loadRecordsFromSheet();
+
+    if (failCount === 0) {
+      setStatus(`All ${successCount} wallet record(s) synced successfully.`);
+    } else {
+      setStatus(`Sync completed. Success: ${successCount}, Failed: ${failCount}.`, true);
     }
   }
 
-  await loadRecordsFromSheet();
-
-  if (failCount === 0) {
-    setStatus(`All ${successCount} wallet record(s) synced successfully.`);
-  } else {
-    setStatus(`Sync completed. Success: ${successCount}, Failed: ${failCount}.`, true);
-  }
-}
-
+  // =========================
+  // TABLE ACTIONS
+  // =========================
   function handleTableAction(event) {
     const actionBtn = event.target.closest("[data-action]");
     if (!actionBtn) return;
@@ -644,6 +671,9 @@
     }
   }
 
+  // =========================
+  // RENDER
+  // =========================
   function renderTable() {
     const query = els.search.value.trim().toLowerCase();
 
@@ -710,6 +740,9 @@
     els.countLabel.textContent = `${filtered.length} wallet record(s)`;
   }
 
+  // =========================
+  // RESET
+  // =========================
   function resetForm() {
     els.form.reset();
 
