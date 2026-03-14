@@ -311,31 +311,31 @@
   }
 
   async function syncToSpinPortal(record) {
-    const response = await fetch(SPIN_SYNC_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        playerId: record.playerId,
-        username: record.portalUsername || record.playerId,
-        name: record.name,
-        phone: record.phone,
-        website: record.website,
-        groupName: record.group,
-        currency: "AUD",
-        timezone: "Australia/Adelaide"
-      })
-    });
+  const response = await fetch(SPIN_SYNC_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      playerId: record.playerId,
+      username: record.portalUsername || record.playerId,
+      name: record.name,
+      phone: record.phone,
+      website: record.website,
+      groupName: record.group,
+      currency: "AUD",
+      timezone: "Australia/Adelaide"
+    })
+  });
 
-    const result = await response.json().catch(() => ({}));
+  const result = await response.json().catch(() => ({}));
 
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Wallet sync failed.");
-    }
-
-    return result;
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Wallet sync failed.");
   }
+
+  return result;
+}
 
   async function loadRecordsFromSheet() {
     try {
@@ -502,38 +502,38 @@
   }
 
   async function handleSyncAll() {
-    clearStatus();
+  clearStatus();
 
-    if (!records.length) {
-      setStatus("No wallet records to sync.", true);
-      return;
-    }
+  if (!records.length) {
+    setStatus("No wallet records to sync.", true);
+    return;
+  }
 
-    let successCount = 0;
-    let failCount = 0;
+  let successCount = 0;
+  let failCount = 0;
 
-    for (const current of records) {
-      try {
-        const record = { ...current };
-        await syncToSpinPortal(record);
-        record.lastSync = nowString();
-        record.updatedAt = nowString();
-        await saveSheetRecord(record);
-        successCount++;
-      } catch (error) {
-        console.error("Sync failed for record:", current.walletId, error);
-        failCount++;
-      }
-    }
-
-    await loadRecordsFromSheet();
-
-    if (failCount === 0) {
-      setStatus(`All ${successCount} wallet record(s) synced successfully.`);
-    } else {
-      setStatus(`Sync completed. Success: ${successCount}, Failed: ${failCount}.`, true);
+  for (const current of records) {
+    try {
+      const record = { ...current };
+      await syncToSpinPortal(record);
+      record.lastSync = nowString();
+      record.updatedAt = nowString();
+      await saveSheetRecord(record);
+      successCount++;
+    } catch (error) {
+      console.error("Sync failed for record:", current.walletId, error);
+      failCount++;
     }
   }
+
+  await loadRecordsFromSheet();
+
+  if (failCount === 0) {
+    setStatus(`All ${successCount} wallet record(s) synced successfully.`);
+  } else {
+    setStatus(`Sync completed. Success: ${successCount}, Failed: ${failCount}.`, true);
+  }
+}
 
   function handleTableAction(event) {
     const actionBtn = event.target.closest("[data-action]");
