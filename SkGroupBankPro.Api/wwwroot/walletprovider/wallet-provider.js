@@ -1,11 +1,13 @@
 (() => {
   "use strict";
 
+ 
   // =========================
-  // CONFIG
-  // =========================
+// CONFIG
+// =========================
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
-  const SPIN_SYNC_URL = "https://skgroupbankpro-4.onrender.com/swagger/wallet-provider.html";
+  const SPIN_SYNC_URL = "https://skgroupbankpro-4.onrender.com/api/walletprovider/create-user";
+  
 
   // =========================
   // ELEMENTS
@@ -328,23 +330,26 @@
   // =========================
   // WALLET PROVIDER SYNC
   // =========================
-  async function syncToSpinPortal(record) {
-    const response = await fetch(SPIN_SYNC_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        playerId: record.playerId,
-        username: record.portalUsername || record.playerId,
-        name: record.name,
-        phone: record.phone,
-        website: record.website,
-        groupName: record.group,
-        currency: "AUD",
-        timezone: "Australia/Adelaide"
-      })
-    });
+  const API_TOKEN = "conciergegroup0808";
+
+async function syncToSpinPortal(record) {
+  const response = await fetch(SPIN_SYNC_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${API_TOKEN}`
+    },
+    body: JSON.stringify({
+      playerId: record.playerId,
+      username: record.portalUsername || record.playerId,
+      name: record.name,
+      phone: record.phone,
+      website: record.website,
+      groupName: record.group,
+      currency: "AUD",
+      timezone: "Australia/Adelaide"
+    })
+  });
 
     const result = await response.json().catch(() => ({}));
 
