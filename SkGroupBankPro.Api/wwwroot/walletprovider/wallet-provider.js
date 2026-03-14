@@ -5,8 +5,8 @@
   // CONFIG
   // =========================
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
-  const SPIN_SYNC_URL = "/api/walletprovider/sync";
-
+  const SPIN_SYNC_URL = "https://skgroupbankpro-4.onrender.com/api/walletprovider/sync";
+  
   // =========================
   // ELEMENTS
   // =========================
