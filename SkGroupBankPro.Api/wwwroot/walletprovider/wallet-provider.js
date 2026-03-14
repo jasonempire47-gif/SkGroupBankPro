@@ -1,13 +1,15 @@
 (() => {
   "use strict";
 
- 
   // =========================
-// CONFIG
-// =========================
+  // CONFIG
+  // =========================
   const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbygqrKBC1tXXuHCKHL0klEyxawsoONLYISoGX5ZALML2KW8rzu5AMbkhFPgpssGV0J-8w/exec";
-  const SPIN_SYNC_URL = "https://skgroupbankpro-4.onrender.com/api/walletprovider/create-user";
-  
+  const API_BASE_URL = "https://skgroupbankpro-4.onrender.com";
+  const SPIN_SYNC_URL = `${API_BASE_URL}/api/walletprovider/create-user`;
+
+  // Replace this with your real token from Admin Dashboard > API Settings
+  const API_TOKEN = "conciergegroup0808";
 
   // =========================
   // ELEMENTS
@@ -230,6 +232,7 @@
     if (!record.name) return "Customer name is required.";
     if (!record.phone) return "Phone number is required.";
     if (!record.walletId) return "Wallet ID is required.";
+    if (!record.playerId) return "Player ID is required.";
     return "";
   }
 
@@ -268,6 +271,18 @@
     };
   }
 
+  function getAuthHeaders(includeSheetHeaders = false) {
+    const headers = includeSheetHeaders
+      ? { "Content-Type": "text/plain;charset=utf-8" }
+      : { "Content-Type": "application/json" };
+
+    if (API_TOKEN && API_TOKEN !== "PASTE_YOUR_REAL_ACCESS_TOKEN_HERE") {
+      headers.Authorization = `Bearer ${API_TOKEN}`;
+    }
+
+    return headers;
+  }
+
   // =========================
   // GOOGLE SHEET API
   // =========================
@@ -288,9 +303,7 @@
   async function saveSheetRecord(record) {
     const response = await fetch(SHEET_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({
         action: "save",
         payload: mapRecordToSheetPayload(record)
@@ -309,9 +322,7 @@
   async function deleteSheetRecord(id) {
     const response = await fetch(SHEET_API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({
         action: "delete",
         id
@@ -330,16 +341,8 @@
   // =========================
   // WALLET PROVIDER SYNC
   // =========================
-  const API_TOKEN = "conciergegroup0808";
-
-async function syncToSpinPortal(record) {
-  const response = await fetch(SPIN_SYNC_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_TOKEN}`
-    },
-    body: JSON.stringify({
+  async function syncToSpinPortal(record) {
+    const payload = {
       playerId: record.playerId,
       username: record.portalUsername || record.playerId,
       name: record.name,
@@ -348,13 +351,29 @@ async function syncToSpinPortal(record) {
       groupName: record.group,
       currency: "AUD",
       timezone: "Australia/Adelaide"
-    })
-  });
+    };
 
-    const result = await response.json().catch(() => ({}));
+    const response = await fetch(SPIN_SYNC_URL, {
+      method: "POST",
+      headers: getAuthHeaders(false),
+      body: JSON.stringify(payload)
+    });
 
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Wallet sync failed.");
+    const rawText = await response.text();
+    let result = {};
+
+    try {
+      result = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      result = { raw: rawText };
+    }
+
+    console.log("SYNC PAYLOAD:", payload);
+    console.log("SYNC RESPONSE STATUS:", response.status);
+    console.log("SYNC RESPONSE BODY:", result);
+
+    if (!response.ok) {
+      throw new Error(result.message || result.error || `Wallet sync failed. HTTP ${response.status}`);
     }
 
     return result;
@@ -512,12 +531,21 @@ async function syncToSpinPortal(record) {
     record.createdAt = existingRecord?.createdAt || nowString();
 
     try {
-      await syncToSpinPortal(record);
+      const syncResult = await syncToSpinPortal(record);
 
       const syncTime = nowString();
       record.lastSync = syncTime;
       record.updatedAt = syncTime;
+      record.apiReference =
+        syncResult.referenceId ||
+        syncResult.transactionId ||
+        syncResult.id ||
+        syncResult.userId ||
+        record.apiReference ||
+        "";
+
       els.lastSync.value = syncTime;
+      els.apiReference.value = record.apiReference;
 
       await saveSheetRecord(record);
       await loadRecordsFromSheet();
@@ -544,9 +572,18 @@ async function syncToSpinPortal(record) {
     for (const current of records) {
       try {
         const record = { ...current };
-        await syncToSpinPortal(record);
+        const syncResult = await syncToSpinPortal(record);
+
         record.lastSync = nowString();
         record.updatedAt = nowString();
+        record.apiReference =
+          syncResult.referenceId ||
+          syncResult.transactionId ||
+          syncResult.id ||
+          syncResult.userId ||
+          record.apiReference ||
+          "";
+
         await saveSheetRecord(record);
         successCount++;
       } catch (error) {
@@ -637,6 +674,7 @@ async function syncToSpinPortal(record) {
     els.depositAmount.value = toNumber(record.depositAmount);
     els.calculatedTokens.value = formatInt(record.calculatedTokens);
     els.lastSync.value = record.lastSync || "";
+    els.apiReference.value = record.apiReference || "";
   }
 
   async function handleDeleteRecord(record) {
@@ -661,10 +699,17 @@ async function syncToSpinPortal(record) {
   async function handleQuickSync(record) {
     try {
       const updatedRecord = { ...record };
-      await syncToSpinPortal(updatedRecord);
+      const syncResult = await syncToSpinPortal(updatedRecord);
 
       updatedRecord.lastSync = nowString();
       updatedRecord.updatedAt = nowString();
+      updatedRecord.apiReference =
+        syncResult.referenceId ||
+        syncResult.transactionId ||
+        syncResult.id ||
+        syncResult.userId ||
+        updatedRecord.apiReference ||
+        "";
 
       await saveSheetRecord(updatedRecord);
       await loadRecordsFromSheet();
@@ -757,8 +802,10 @@ async function syncToSpinPortal(record) {
     els.depositAmount.value = 0;
     els.calculatedTokens.value = 0;
     els.lastSync.value = "";
+    els.apiReference.value = "";
     els.btnCancelEdit.hidden = true;
 
     clearStatus();
+    updateCalculatedTokens();
   }
 })();
