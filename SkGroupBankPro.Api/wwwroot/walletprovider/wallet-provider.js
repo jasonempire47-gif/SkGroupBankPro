@@ -300,53 +300,55 @@
     return Array.isArray(result.data) ? result.data : [];
   }
 
-  async function saveSheetRecord(record) {
-    const response = await fetch(SHEET_API_URL, {
-      method: "POST",
-      headers: getAuthHeaders(true),
-      body: JSON.stringify({
-        action: "save",
-        payload: mapRecordToSheetPayload(record)
-      })
-    });
+ async function saveSheetRecord(record) {
+  const response = await fetch(SHEET_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify({
+      action: "save",
+      payload: mapRecordToSheetPayload(record)
+    })
+  });
 
-    const result = await response.json().catch(() => ({}));
+  const result = await response.json().catch(() => ({}));
 
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to save record to Google Sheet.");
-    }
-
-    return result.data || null;
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to save record to Google Sheet.");
   }
 
-  async function deleteSheetRecord(id) {
-    const response = await fetch(SHEET_API_URL, {
-      method: "POST",
-      headers: getAuthHeaders(true),
-      body: JSON.stringify({
-        action: "delete",
-        id
-      })
-    });
+  return result.data || null;
+}
 
-    const result = await response.json().catch(() => ({}));
+async function deleteSheetRecord(id) {
+  const response = await fetch(SHEET_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify({
+      action: "delete",
+      id
+    })
+  });
 
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to delete record from Google Sheet.");
-    }
+  const result = await response.json().catch(() => ({}));
 
-    return true;
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to delete record from Google Sheet.");
   }
+
+  return true;
+}
 
   // =========================
   // WALLET PROVIDER SYNC
   // =========================
-  async function syncToSpinPortal(record) {
-
+async function syncToSpinPortal(record) {
   const payload = {
     accessId: "admin",
     accessToken: "conciergegroup0808",
-
     playerId: record.playerId,
     username: record.portalUsername || record.playerId,
     name: record.name,
@@ -366,9 +368,6 @@
   });
 
   const result = await response.json().catch(() => ({}));
-
-  console.log("SYNC PAYLOAD:", payload);
-  console.log("SYNC RESPONSE:", result);
 
   if (!response.ok || result.success === false) {
     throw new Error(result.message || "Wallet sync failed.");
